@@ -32,5 +32,6 @@ def clean_markdown(raw_markdown: str, model: str | None = None) -> str:
         model or config.CLEANUP_MODEL,
         [{"role": "user", "content": _PROMPT + raw_markdown}],
         label="cleanup",
+        max_tokens=4096,
     )
     return (resp.choices[0].message.content or "").strip()

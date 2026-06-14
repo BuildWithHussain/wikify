@@ -60,5 +60,6 @@ class VLMParser(ParserAdapter):
                 }
             ],
             label="vlm_parse",
+            max_tokens=8192,
         )
         return (resp.choices[0].message.content or "").strip()

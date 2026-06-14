@@ -66,6 +66,7 @@ def judge_page(image_path: str, markdown: str) -> dict:
         ],
         label="judge",
         response_format={"type": "json_object"},
+        max_tokens=1024,
     )
     raw = resp.choices[0].message.content or ""
     data = _extract_json(raw)

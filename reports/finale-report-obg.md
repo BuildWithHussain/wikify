@@ -4,7 +4,6 @@
 **Models:** parse VLM = `mistralai/mistral-medium-3.1` · cleanup = `google/gemini-2.5-flash` · judge = `anthropic/claude-sonnet-4.6`  
 **Quality:** judged on a 45-page sample (same pages for both strategies).
 
-Two strategies compared:
 - **All-VLM** — every page parsed by the cloud VLM.
 - **Local-first** — free local baseline (`pymupdf4llm`), escalate **only** flagged pages (mangled text → cheap cleanup; visual/diagram or low-recall → VLM re-parse).
 
@@ -28,11 +27,7 @@ Structure prep = classifying 372 sections (`google/gemini-2.5-flash`), shared by
 
 Judge evaluation overhead (run on both, sample): $0.662 — measurement, not production cost.
 
-## Takeaway
-
-Local-first is **~18× cheaper and ~16× faster on parsing** (~7× cheaper end-to-end), paying the cloud VLM on only **3 of 180 pages**. The cost is a modest quality drop (88.4% vs 97.3%) because most pages keep the local baseline rather than a clean VLM parse.
-
-## Section types (372 sections)
+## Section types
 
 | type | count |
 |---|---|
@@ -50,7 +45,7 @@ Local-first is **~18× cheaper and ~16× faster on parsing** (~7× cheaper end-t
 
 ## Generated structure (19 wiki pages)
 
-Derived from the section hierarchy; a heading-validation pass demotes numbered list-items mis-read as chapters, so the tree is the real chapter list. Internal page references are rewritten as wiki links (link count shown).
+Derived from the section hierarchy; a heading-validation pass demotes numbered list-items mis-read as chapters. Internal page references are rewritten as wiki links.
 
 | Wiki page | PDF pages | links |
 |---|---|---|

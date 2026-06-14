@@ -25,6 +25,7 @@ def classify_section(title: str, content: str) -> str:
             [{"role": "user", "content": prompt}],
             label="classify",
             response_format={"type": "json_object"},
+            max_tokens=64,
         )
         label = json.loads(resp.choices[0].message.content or "{}").get("type", "other")
         return label if label in config.SECTION_TYPES else "other"

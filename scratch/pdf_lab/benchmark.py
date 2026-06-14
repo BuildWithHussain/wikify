@@ -161,9 +161,20 @@ def run(doc_id: str, pdf: str, sample_size: int = 40) -> dict:
     }
 
 
+def _load_all() -> dict:
+    if not RESULT_PATH.exists():
+        return {}
+    data = json.loads(RESULT_PATH.read_text())
+    if "doc_id" in data:  # migrate old single-doc flat format -> {doc_id: result}
+        data = {data["doc_id"]: data}
+    return data
+
+
 if __name__ == "__main__":
     doc_id, pdf = sys.argv[1], sys.argv[2]
     size = int(sys.argv[3]) if len(sys.argv) > 3 else 40
     res = run(doc_id, pdf, size)
-    RESULT_PATH.write_text(json.dumps(res, indent=2))
-    print(json.dumps(res, indent=2))
+    alld = _load_all()
+    alld[doc_id] = res
+    RESULT_PATH.write_text(json.dumps(alld, indent=2))
+    print(f"saved benchmark for {doc_id}: {len(alld)} doc(s) total")

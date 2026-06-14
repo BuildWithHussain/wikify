@@ -1,185 +1,316 @@
 {
-  "doc_id": "obg",
-  "filename": "Obstetrics and Gynaecology.pdf",
-  "pages": 180,
-  "sample_size": 45,
-  "judge_model": "anthropic/claude-sonnet-4.6",
-  "vlm_model": "mistralai/mistral-medium-3.1",
-  "cleanup_model": "google/gemini-2.5-flash",
-  "all_vlm": {
-    "wall_seconds": 366.2,
-    "by_label": {
-      "vlm_parse": {
-        "calls": 180,
-        "seconds": 1449.1,
-        "cost": 0.34698
-      }
-    },
-    "parse_cost": 0.34698,
-    "cost_known": true,
-    "mean_judge": 0.973,
-    "pipeline_cost": 0.38029
-  },
-  "local_first": {
-    "wall_seconds": 23.4,
-    "by_label": {
-      "cleanup": {
-        "calls": 13,
-        "seconds": 28.1,
-        "cost": 0.01217
+  "obg": {
+    "doc_id": "obg",
+    "filename": "Obstetrics and Gynaecology.pdf",
+    "pages": 180,
+    "sample_size": 45,
+    "judge_model": "anthropic/claude-sonnet-4.6",
+    "vlm_model": "mistralai/mistral-medium-3.1",
+    "cleanup_model": "google/gemini-2.5-flash",
+    "all_vlm": {
+      "wall_seconds": 366.2,
+      "by_label": {
+        "vlm_parse": {
+          "calls": 180,
+          "seconds": 1449.1,
+          "cost": 0.34698
+        }
       },
-      "vlm_parse": {
-        "calls": 3,
-        "seconds": 41.0,
-        "cost": 0.007
+      "parse_cost": 0.34698,
+      "cost_known": true,
+      "mean_judge": 0.973,
+      "pipeline_cost": 0.38029
+    },
+    "local_first": {
+      "wall_seconds": 23.4,
+      "by_label": {
+        "cleanup": {
+          "calls": 13,
+          "seconds": 28.1,
+          "cost": 0.01217
+        },
+        "vlm_parse": {
+          "calls": 3,
+          "seconds": 41.0,
+          "cost": 0.007
+        }
+      },
+      "parse_cost": 0.01917,
+      "cost_known": true,
+      "escalated": {
+        "cleanup": 13,
+        "vlm": 3
+      },
+      "mean_judge": 0.884,
+      "pipeline_cost": 0.05248
+    },
+    "judge_eval_cost": 0.66215,
+    "structure_prep": {
+      "sections": 372,
+      "cost": 0.03331,
+      "seconds": 311.6,
+      "model": "google/gemini-2.5-flash",
+      "by_type": {
+        "clinical_protocols": 75,
+        "administrative_policies": 27,
+        "other": 10,
+        "staff_roles_and_responsibilities": 24,
+        "patient_management": 106,
+        "surgical_procedures": 36,
+        "research_and_documentation": 10,
+        "equipment_and_facilities": 4,
+        "emergency_procedures": 19,
+        "medication_management": 44,
+        "training_and_audits": 17
       }
     },
-    "parse_cost": 0.01917,
-    "cost_known": true,
-    "escalated": {
-      "cleanup": 13,
-      "vlm": 3
-    },
-    "mean_judge": 0.884,
-    "pipeline_cost": 0.05248
-  },
-  "judge_eval_cost": 0.66215,
-  "structure_prep": {
-    "sections": 372,
-    "cost": 0.03331,
-    "seconds": 311.6,
-    "model": "google/gemini-2.5-flash",
-    "by_type": {
-      "clinical_protocols": 75,
-      "administrative_policies": 27,
-      "other": 10,
-      "staff_roles_and_responsibilities": 24,
-      "patient_management": 106,
-      "surgical_procedures": 36,
-      "research_and_documentation": 10,
-      "equipment_and_facilities": 4,
-      "emergency_procedures": 19,
-      "medication_management": 44,
-      "training_and_audits": 17
+    "structure": {
+      "wiki_pages": 19,
+      "tree": [
+        {
+          "title": "CHRISTIAN MEDICAL COLLEGE, VELLORE",
+          "page_start": 1,
+          "page_end": 1,
+          "ref_links": 0
+        },
+        {
+          "title": "REVISION HISTORY",
+          "page_start": 1,
+          "page_end": 6,
+          "ref_links": 0
+        },
+        {
+          "title": "1. DEPARTMENTAL PROFILE",
+          "page_start": 7,
+          "page_end": 16,
+          "ref_links": 0
+        },
+        {
+          "title": "3. RESPONSIBILITIES AND JOB DESCRIPTION",
+          "page_start": 16,
+          "page_end": 37,
+          "ref_links": 0
+        },
+        {
+          "title": "4. RECORDS MAINTAINED",
+          "page_start": 37,
+          "page_end": 38,
+          "ref_links": 0
+        },
+        {
+          "title": "5. PROCEDURE FOLLOWED FOR THE ACCESS OF THE PATIENT",
+          "page_start": 39,
+          "page_end": 87,
+          "ref_links": 0
+        },
+        {
+          "title": "6. CLINICAL PROTOCOLS",
+          "page_start": 87,
+          "page_end": 110,
+          "ref_links": 0
+        },
+        {
+          "title": "MISOPROSTOL-ONLY RECOMMENDED REGIMENS 2017",
+          "page_start": 110,
+          "page_end": 134,
+          "ref_links": 1
+        },
+        {
+          "title": "FIGO recommendations",
+          "page_start": 130,
+          "page_end": 161,
+          "ref_links": 0
+        },
+        {
+          "title": "7. PROCEDURES IN PLACE FOR COMPLIANCE TO PATIENT RIGHTS AND RESPONSIBITIES",
+          "page_start": 161,
+          "page_end": 165,
+          "ref_links": 0
+        },
+        {
+          "title": "8. PROCEDURES IN PLACE FOR MANAGING MEDICATION",
+          "page_start": 165,
+          "page_end": 169,
+          "ref_links": 0
+        },
+        {
+          "title": "9. PROCEDURES IN PLACE FOR MONITORING QUALITY OF SERVICES",
+          "page_start": 169,
+          "page_end": 170,
+          "ref_links": 0
+        },
+        {
+          "title": "10. PROCEDURES FOLLOWED FOR THE PATIENT/STAFF SAFETY",
+          "page_start": 170,
+          "page_end": 174,
+          "ref_links": 0
+        },
+        {
+          "title": "11. LEGAL REQUIREMENTS",
+          "page_start": 174,
+          "page_end": 175,
+          "ref_links": 0
+        },
+        {
+          "title": "12. CONTINUOUS LEARNING /TRAINING INITIATIVES",
+          "page_start": 175,
+          "page_end": 176,
+          "ref_links": 0
+        },
+        {
+          "title": "13. INFORMATION MANAGEMENT SYSTEM",
+          "page_start": 176,
+          "page_end": 177,
+          "ref_links": 0
+        },
+        {
+          "title": "14. KEY PERFORMANCE INDICATORS",
+          "page_start": 177,
+          "page_end": 178,
+          "ref_links": 0
+        },
+        {
+          "title": "15. CLINICAL AUDITS",
+          "page_start": 178,
+          "page_end": 179,
+          "ref_links": 0
+        },
+        {
+          "title": "16. DOCUMENTATION CONTROL",
+          "page_start": 179,
+          "page_end": 180,
+          "ref_links": 0
+        }
+      ]
     }
   },
-  "structure": {
-    "wiki_pages": 19,
-    "tree": [
-      {
-        "title": "CHRISTIAN MEDICAL COLLEGE, VELLORE",
-        "page_start": 1,
-        "page_end": 1,
-        "ref_links": 0
+  "neph": {
+    "doc_id": "neph",
+    "filename": "Nephrology.pdf",
+    "pages": 398,
+    "sample_size": 45,
+    "judge_model": "anthropic/claude-sonnet-4.6",
+    "vlm_model": "mistralai/mistral-medium-3.1",
+    "cleanup_model": "google/gemini-2.5-flash",
+    "all_vlm": {
+      "wall_seconds": 275.5,
+      "by_label": {
+        "vlm_parse": {
+          "calls": 126,
+          "seconds": 1035.6,
+          "cost": 0.2356
+        }
       },
-      {
-        "title": "REVISION HISTORY",
-        "page_start": 1,
-        "page_end": 6,
-        "ref_links": 0
+      "parse_cost": 0.2356,
+      "cost_known": true,
+      "mean_judge": null
+    },
+    "local_first": {
+      "wall_seconds": 6.4,
+      "by_label": {},
+      "parse_cost": 0,
+      "cost_known": true,
+      "escalated": {
+        "cleanup": 0,
+        "vlm": 0
       },
-      {
-        "title": "1. DEPARTMENTAL PROFILE",
-        "page_start": 7,
-        "page_end": 16,
-        "ref_links": 0
-      },
-      {
-        "title": "3. RESPONSIBILITIES AND JOB DESCRIPTION",
-        "page_start": 16,
-        "page_end": 37,
-        "ref_links": 0
-      },
-      {
-        "title": "4. RECORDS MAINTAINED",
-        "page_start": 37,
-        "page_end": 38,
-        "ref_links": 0
-      },
-      {
-        "title": "5. PROCEDURE FOLLOWED FOR THE ACCESS OF THE PATIENT",
-        "page_start": 39,
-        "page_end": 87,
-        "ref_links": 0
-      },
-      {
-        "title": "6. CLINICAL PROTOCOLS",
-        "page_start": 87,
-        "page_end": 110,
-        "ref_links": 0
-      },
-      {
-        "title": "MISOPROSTOL-ONLY RECOMMENDED REGIMENS 2017",
-        "page_start": 110,
-        "page_end": 134,
-        "ref_links": 1
-      },
-      {
-        "title": "FIGO recommendations",
-        "page_start": 130,
-        "page_end": 161,
-        "ref_links": 0
-      },
-      {
-        "title": "7. PROCEDURES IN PLACE FOR COMPLIANCE TO PATIENT RIGHTS AND RESPONSIBITIES",
-        "page_start": 161,
-        "page_end": 165,
-        "ref_links": 0
-      },
-      {
-        "title": "8. PROCEDURES IN PLACE FOR MANAGING MEDICATION",
-        "page_start": 165,
-        "page_end": 169,
-        "ref_links": 0
-      },
-      {
-        "title": "9. PROCEDURES IN PLACE FOR MONITORING QUALITY OF SERVICES",
-        "page_start": 169,
-        "page_end": 170,
-        "ref_links": 0
-      },
-      {
-        "title": "10. PROCEDURES FOLLOWED FOR THE PATIENT/STAFF SAFETY",
-        "page_start": 170,
-        "page_end": 174,
-        "ref_links": 0
-      },
-      {
-        "title": "11. LEGAL REQUIREMENTS",
-        "page_start": 174,
-        "page_end": 175,
-        "ref_links": 0
-      },
-      {
-        "title": "12. CONTINUOUS LEARNING /TRAINING INITIATIVES",
-        "page_start": 175,
-        "page_end": 176,
-        "ref_links": 0
-      },
-      {
-        "title": "13. INFORMATION MANAGEMENT SYSTEM",
-        "page_start": 176,
-        "page_end": 177,
-        "ref_links": 0
-      },
-      {
-        "title": "14. KEY PERFORMANCE INDICATORS",
-        "page_start": 177,
-        "page_end": 178,
-        "ref_links": 0
-      },
-      {
-        "title": "15. CLINICAL AUDITS",
-        "page_start": 178,
-        "page_end": 179,
-        "ref_links": 0
-      },
-      {
-        "title": "16. DOCUMENTATION CONTROL",
-        "page_start": 179,
-        "page_end": 180,
-        "ref_links": 0
-      }
-    ]
+      "mean_judge": null
+    },
+    "judge_eval_cost": 0,
+    "structure": {
+      "wiki_pages": 15,
+      "tree": [
+        {
+          "title": "CHRISTIAN MEDICAL COLLEGE VELLORE-RANIPET CAMPUS",
+          "page_start": 1,
+          "page_end": 1,
+          "ref_links": 0
+        },
+        {
+          "title": "PROCEDURE MANUAL - NEPHROLOGY",
+          "page_start": 1,
+          "page_end": 392,
+          "ref_links": 0
+        },
+        {
+          "title": "5 Procedures for access of the patients",
+          "page_start": 4,
+          "page_end": 105,
+          "ref_links": 0
+        },
+        {
+          "title": "6. Teaching",
+          "page_start": 68,
+          "page_end": 68,
+          "ref_links": 0
+        },
+        {
+          "title": "7. Maintenance of records",
+          "page_start": 68,
+          "page_end": 69,
+          "ref_links": 0
+        },
+        {
+          "title": "8. Maintenance of stocks and payments",
+          "page_start": 69,
+          "page_end": 69,
+          "ref_links": 0
+        },
+        {
+          "title": "9. Receiving stocks",
+          "page_start": 69,
+          "page_end": 69,
+          "ref_links": 0
+        },
+        {
+          "title": "10. Issuing stock",
+          "page_start": 69,
+          "page_end": 69,
+          "ref_links": 0
+        },
+        {
+          "title": "11. Administration",
+          "page_start": 69,
+          "page_end": 275,
+          "ref_links": 0
+        },
+        {
+          "title": "NEPHROLOGY MANUAL",
+          "page_start": 210,
+          "page_end": 210,
+          "ref_links": 0
+        },
+        {
+          "title": "CHRISTIAN MEDICAL COLLEGE DEPARTMENT OF NEPHROLOGY CONSENT FOR CAPD CATHETER INSERTION",
+          "page_start": 210,
+          "page_end": 257,
+          "ref_links": 0
+        },
+        {
+          "title": "CHRISTIAN MEDICAL COLLEGE DEPARTMENT OF NEPHROLOGY",
+          "page_start": 257,
+          "page_end": 265,
+          "ref_links": 0
+        },
+        {
+          "title": "Peritonitis treatment (ISPD Guidelines and Recommendations 2016)",
+          "page_start": 266,
+          "page_end": 374,
+          "ref_links": 0
+        },
+        {
+          "title": "12. INFORMATION MANAGEMENT SYSTEM",
+          "page_start": 392,
+          "page_end": 396,
+          "ref_links": 0
+        },
+        {
+          "title": "13. DOCUMENTATION CONTROL",
+          "page_start": 397,
+          "page_end": 398,
+          "ref_links": 0
+        }
+      ]
+    }
   }
 }
