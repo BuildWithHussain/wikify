@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <h1>Ingest a PDF</h1>
+  {% if not has_key %}
+    <p class="warn">No <code>OPENROUTER_API_KEY</code> set — cloud parser, LLM-judge,
+      and section tagging are disabled. Baseline parsing still works.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="upload">
+    <input type="file" name="pdf" accept="application/pdf" required>
+    <label>Parser
+      <select name="parser">
+        {% for p in parsers %}
+          <option value="{{ p.name }}">{{ p.name }}{% if p.requires_api_key %} (cloud){% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="checkbox"><input type="checkbox" name="use_judge"> LLM judge</label>
+    <label class="checkbox"><input type="checkbox" name="classify" checked> Tag sections</label>
+    <button type="submit">Parse &amp; load</button>
+  </form>
+</section>
+
+{% if type_counts %}
+<section class="card">
+  <h2>Section types across all documents</h2>
+  <div class="chips">
+    {% for t, c in type_counts.items() %}
+      <a class="chip" href="{{ url_for('all_sections', type=t) }}">{{ t }} <b>{{ c }}</b></a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Documents</h2>
+  {% if documents %}
+  <table>
+    <thead><tr><th>File</th><th>Pages</th><th>Parser</th><th>Score</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for d in documents %}
+      <tr>
+        <td><a href="{{ url_for('document', doc_id=d.id) }}">{{ d.filename }}</a></td>
+        <td>{{ d.page_count }}</td>
+        <td>{{ d.parser_used }}</td>
+        <td>{% if d.mean_score is not none %}{{ '%.0f'|format(d.mean_score * 100) }}%{% endif %}</td>
+        <td><span class="status {{ 'ok' if d.status == 'done' else 'bad' }}">{{ d.status }}</span></td>
+        <td><a href="{{ url_for('doc_sections', doc_id=d.id) }}">sections</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">Nothing ingested yet.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

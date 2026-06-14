@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %} — benchmark{% endblock %}
+{% block content %}
+
+{% macro money(v, known) %}{% if known %}${{ '%.4f'|format(v) }}{% else %}<span class="muted">n/a</span>{% endif %}{% endmacro %}
+{% macro pct(v) %}{% if v is not none %}{{ '%.1f'|format(v * 100) }}%{% else %}<span class="muted">n/a</span>{% endif %}{% endmacro %}
+
+<section class="card">
+  <h1>Strategy benchmark</h1>
+  {% if not data %}
+    <p class="muted">No benchmark yet. Run <code>.venv/bin/python benchmark.py &lt;doc_id&gt; &lt;pdf&gt;</code>.</p>
+  {% else %}
+  <p class="muted">
+    {{ data.filename }} · {{ data.pages }} pages · quality judged on a {{ data.sample_size }}-page sample<br>
+    vlm=<code>{{ data.vlm_model }}</code> · cleanup=<code>{{ data.cleanup_model }}</code> · judge=<code>{{ data.judge_model }}</code>
+  </p>
+  {% endif %}
+</section>
+
+{% if data %}
+{% set a = data.all_vlm %}{% set b = data.local_first %}
+<section class="card">
+  <h2>Head to head</h2>
+  <table>
+    <thead><tr><th>Metric</th><th>All-VLM (every page)</th><th>Local-first (escalate when needed)</th><th>Δ</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Parse wall time</td>
+        <td>{{ a.wall_seconds }}s</td>
+        <td>{{ b.wall_seconds }}s</td>
+        <td class="delta {{ 'up' if b.wall_seconds < a.wall_seconds }}">{{ '%.0f'|format(100*(a.wall_seconds-b.wall_seconds)/a.wall_seconds if a.wall_seconds else 0) }}% faster</td>
+      </tr>
+      <tr>
+        <td>Parse cost</td>
+        <td>{{ money(a.parse_cost, a.cost_known) }}</td>
+        <td>{{ money(b.parse_cost, b.cost_known) }}</td>
+        <td class="delta {{ 'up' if b.parse_cost < a.parse_cost }}">
+          {% if a.cost_known and b.cost_known and a.parse_cost %}{{ '%.0f'|format(100*(a.parse_cost-b.parse_cost)/a.parse_cost) }}% cheaper{% endif %}</td>
+      </tr>
+      <tr>
+        <td>Cloud calls (parse)</td>
+        <td>{{ a.by_label.get('vlm_parse',{}).get('calls',0) }} vlm</td>
+        <td>{{ b.by_label.get('vlm_parse',{}).get('calls',0) }} vlm + {{ b.by_label.get('cleanup',{}).get('calls',0) }} cleanup</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>Mean judge score (sample)</td>
+        <td><b>{{ pct(a.mean_judge) }}</b></td>
+        <td><b>{{ pct(b.mean_judge) }}</b></td>
+        <td class="delta {{ 'up' if (b.mean_judge or 0) >= (a.mean_judge or 0) }}">
+          {{ '%+.1f'|format(((b.mean_judge or 0) - (a.mean_judge or 0)) * 100) }} pts</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Local-first routing</h2>
+  <p>Of {{ data.pages }} pages, only the flagged ones were escalated:
+    <b>{{ b.escalated.cleanup }}</b> cheap cleanup, <b>{{ b.escalated.vlm }}</b> VLM re-parse —
+    the rest used the free local baseline.</p>
+  <p class="muted">Judge evaluation cost (overhead, run on both): {{ money(data.judge_eval_cost, true) }}</p>
+</section>
+
+{% if data.structure_prep %}
+<section class="card">
+  <h2>Full pipeline cost (incl. remediation + structure prep)</h2>
+  <p class="muted">Structure prep = tagging {{ data.structure_prep.sections }} sections with the taxonomy
+    (<code>{{ data.structure_prep.model }}</code>); shared by both strategies.</p>
+  <table>
+    <thead><tr><th></th><th>Parse / remediation</th><th>Structure prep</th><th>Total pipeline</th></tr></thead>
+    <tbody>
+      <tr><td>All-VLM</td><td>{{ money(a.parse_cost, true) }}</td>
+        <td>{{ money(data.structure_prep.cost, true) }}</td><td><b>{{ money(a.pipeline_cost, true) }}</b></td></tr>
+      <tr><td>Local-first</td><td>{{ money(b.parse_cost, true) }}</td>
+        <td>{{ money(data.structure_prep.cost, true) }}</td><td><b>{{ money(b.pipeline_cost, true) }}</b></td></tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if data.structure %}
+<section class="card">
+  <h2>Generated structure <span class="muted">({{ data.structure.wiki_pages }} wiki pages)</span></h2>
+  <ul class="tree">
+    {% for t in data.structure.tree %}
+      <li>{{ t.title }} <span class="metrics">pp {{ t.page_start }}–{{ t.page_end }}{% if t.ref_links %} · {{ t.ref_links }} link(s){% endif %}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Takeaway</h2>
+  <p>Local-first reaches comparable quality (judge {{ pct(b.mean_judge) }} vs {{ pct(a.mean_judge) }})
+  while paying the cloud VLM on only {{ b.escalated.vlm }}/{{ data.pages }} pages instead of all of them —
+  most pages are handled free locally or by the cheap cleanup model.</p>
+</section>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %} — {{ page.title }}{% endblock %}
+{% block content %}
+
+<div class="wiki-layout">
+  <aside class="card wiki-nav">
+    <h3>{{ doc.filename }}</h3>
+    <a href="{{ url_for('wiki_index', doc_id=doc.id) }}" class="muted">all pages</a>
+    <ul class="tree">
+      {% for p in pages %}
+        <li><a class="{{ 'on' if p.slug == page.slug }}"
+               href="{{ url_for('wiki_page', doc_id=doc.id, slug=p.slug) }}">{{ p.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <article class="card wiki-content">
+    <p class="muted">pp {{ page.page_start }}–{{ page.page_end }}{% if page.ref_links %} · {{ page.ref_links }} internal link(s){% endif %}</p>
+    <div class="markdown">{{ page.html|safe }}</div>
+  </article>
+</div>
+
+{% endblock %}

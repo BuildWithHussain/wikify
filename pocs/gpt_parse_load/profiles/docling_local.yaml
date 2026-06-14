@@ -1,0 +1,23 @@
+name: docling_local
+provider: docling
+model: default
+mode: local
+
+page_range: all
+ocr: auto
+extract_images: true
+extract_tables: true
+table_format: html
+include_bboxes: true
+include_confidence: true
+remove_headers_footers: true
+build_sections: true
+markdown_style: commonmark
+
+store_raw_output: true
+store_page_images: true
+timeout_seconds: 900
+
+provider_options:
+  render_dpi: 150
+

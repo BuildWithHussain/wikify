@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %} — sections{% endblock %}
+{% block content %}
+
+<section class="card">
+  {% if scope == 'all' %}
+    <h1>Cross-document sections</h1>
+    <p class="muted">The headline query: every section of a type across all PDFs — a
+      deterministic graph traversal, each result self-citing (doc + page range).</p>
+  {% else %}
+    <h1>Sections — {{ doc.filename }}</h1>
+    <p class="muted"><a href="{{ url_for('document', doc_id=doc.id) }}">← back to pages</a></p>
+  {% endif %}
+
+  <div class="chips">
+    {% set base = url_for('all_sections') if scope == 'all' else url_for('doc_sections', doc_id=doc.id) %}
+    <a class="chip {{ 'on' if not active_type }}" href="{{ base }}">all</a>
+    {% for t in section_types %}
+      <a class="chip {{ 'on' if active_type == t }}" href="{{ base }}?type={{ t }}">{{ t }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if scope == 'all' and not active_type %}
+  <section class="card"><p class="muted">Pick a section type above to list matches across documents.</p></section>
+{% endif %}
+
+{% for s in sections %}
+<section class="card section">
+  <div class="page-head">
+    <h3>{{ s.title }}</h3>
+    {% if s.section_type %}<span class="tag">{{ s.section_type }}</span>{% endif %}
+    <span class="metrics">
+      {% if s.filename %}{{ s.filename }} · {% endif %}
+      pp. {{ s.page_start }}{% if s.page_end != s.page_start %}–{{ s.page_end }}{% endif %}
+    </span>
+  </div>
+  {% if s.hierarchy_path %}<p class="crumb">{{ s.hierarchy_path }}</p>{% endif %}
+  <div class="markdown">{{ s.html|safe }}</div>
+</section>
+{% endfor %}
+
+{% if active_type and not sections %}
+  <section class="card"><p class="muted">No sections tagged <b>{{ active_type }}</b> yet.</p></section>
+{% endif %}
+
+{% endblock %}

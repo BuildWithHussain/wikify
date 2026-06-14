@@ -1,0 +1,31 @@
+name: openrouter_mistral_medium
+provider: openrouter
+model: mistralai/mistral-medium-3-5
+mode: cloud
+
+api_key_env: OPENROUTER_API_KEY
+page_range: all
+ocr: model
+extract_images: true
+extract_tables: true
+table_format: html
+include_bboxes: true
+include_confidence: model_reported
+remove_headers_footers: prompt_controlled
+build_sections: true
+markdown_style: commonmark
+
+store_raw_output: true
+store_page_images: true
+timeout_seconds: 1200
+
+provider_options:
+  render_dpi: 200
+  prompt_name: pdf_page_to_markdown_v1
+  max_pages_per_request: 1
+  temperature: 0
+  require_json_response: true
+  fallback_on_error: true
+  fallback_render_dpi: 120
+  fallback_prompt_name: pdf_page_to_markdown_plain_v1
+  fallback_require_json_response: false

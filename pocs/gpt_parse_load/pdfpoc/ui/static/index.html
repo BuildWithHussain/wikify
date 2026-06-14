@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PDF Parse Review</title>
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>PDF Parse Review</h1>
+        <p id="runSummary">Loading runs</p>
+      </div>
+      <div class="status-strip" id="statusStrip"></div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <label class="field">
+          <span>Document</span>
+          <select id="documentSelect"></select>
+        </label>
+        <label class="field">
+          <span>Page</span>
+          <select id="pageSelect"></select>
+        </label>
+        <div class="run-picker">
+          <div class="section-title">Runs</div>
+          <div id="runList"></div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <section class="band">
+          <div class="band-header">
+            <h2>Run Scoreboard</h2>
+          </div>
+          <div class="table-wrap">
+            <table id="scoreTable">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Profile</th>
+                  <th>Model</th>
+                  <th>Pages</th>
+                  <th>Recall</th>
+                  <th>Min</th>
+                  <th>Extra</th>
+                  <th>BBox</th>
+                  <th>Cost</th>
+                  <th>Ingest</th>
+                  <th>Tags</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="review-grid">
+          <div class="source-pane">
+            <div class="pane-head">
+              <h2>Source</h2>
+              <span id="pageLabel"></span>
+            </div>
+            <div id="pageImageWrap" class="page-image-wrap"></div>
+            <div id="reviewForm" class="review-form"></div>
+            <div class="subhead">Selectable Text</div>
+            <pre id="sourceText" class="text-box"></pre>
+          </div>
+
+          <div class="compare-pane">
+            <div class="pane-head">
+              <h2>Model Comparison</h2>
+              <span id="compareLabel"></span>
+            </div>
+            <div id="compareColumns" class="compare-columns"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

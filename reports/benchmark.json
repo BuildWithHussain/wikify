@@ -1,0 +1,233 @@
+{
+  "doc_id": "obg",
+  "filename": "Obstetrics and Gynaecology.pdf",
+  "pages": 180,
+  "sample_size": 45,
+  "judge_model": "anthropic/claude-sonnet-4.6",
+  "vlm_model": "mistralai/mistral-medium-3.1",
+  "cleanup_model": "google/gemini-2.5-flash",
+  "all_vlm": {
+    "wall_seconds": 366.2,
+    "by_label": {
+      "vlm_parse": {
+        "calls": 180,
+        "seconds": 1449.1,
+        "cost": 0.34698
+      }
+    },
+    "parse_cost": 0.34698,
+    "cost_known": true,
+    "mean_judge": 0.973,
+    "pipeline_cost": 0.38029
+  },
+  "local_first": {
+    "wall_seconds": 23.4,
+    "by_label": {
+      "cleanup": {
+        "calls": 13,
+        "seconds": 28.1,
+        "cost": 0.01217
+      },
+      "vlm_parse": {
+        "calls": 3,
+        "seconds": 41.0,
+        "cost": 0.007
+      }
+    },
+    "parse_cost": 0.01917,
+    "cost_known": true,
+    "escalated": {
+      "cleanup": 13,
+      "vlm": 3
+    },
+    "mean_judge": 0.884,
+    "pipeline_cost": 0.05248
+  },
+  "judge_eval_cost": 0.66215,
+  "structure_prep": {
+    "sections": 367,
+    "cost": 0.03331,
+    "seconds": 311.6,
+    "model": "google/gemini-2.5-flash",
+    "by_type": {
+      "other": 11,
+      "administrative_policies": 28,
+      "clinical_protocols": 74,
+      "staff_roles_and_responsibilities": 26,
+      "patient_management": 104,
+      "surgical_procedures": 32,
+      "research_and_documentation": 10,
+      "equipment_and_facilities": 3,
+      "emergency_procedures": 17,
+      "medication_management": 45,
+      "training_and_audits": 17
+    }
+  },
+  "structure": {
+    "wiki_pages": 27,
+    "tree": [
+      {
+        "title": "CHRISTIAN MEDICAL COLLEGE, VELLORE",
+        "page_start": 1,
+        "page_end": 1,
+        "ref_links": 0
+      },
+      {
+        "title": "REVISION HISTORY",
+        "page_start": 1,
+        "page_end": 7,
+        "ref_links": 0
+      },
+      {
+        "title": "1. DEPARTMENTAL PROFILE",
+        "page_start": 7,
+        "page_end": 12,
+        "ref_links": 0
+      },
+      {
+        "title": "ORGANOGRAM",
+        "page_start": 13,
+        "page_end": 16,
+        "ref_links": 0
+      },
+      {
+        "title": "3. RESPONSIBILITIES AND JOB DESCRIPTION",
+        "page_start": 16,
+        "page_end": 37,
+        "ref_links": 0
+      },
+      {
+        "title": "4. RECORDS MAINTAINED",
+        "page_start": 37,
+        "page_end": 39,
+        "ref_links": 0
+      },
+      {
+        "title": "5. PROCEDURE FOLLOWED FOR THE ACCESS OF THE PATIENT",
+        "page_start": 39,
+        "page_end": 85,
+        "ref_links": 0
+      },
+      {
+        "title": "2. **Maternal mortality meeting",
+        "page_start": 85,
+        "page_end": 85,
+        "ref_links": 0
+      },
+      {
+        "title": "3. **Gynaecology audit",
+        "page_start": 85,
+        "page_end": 87,
+        "ref_links": 0
+      },
+      {
+        "title": "6. CLINICAL PROTOCOLS",
+        "page_start": 87,
+        "page_end": 110,
+        "ref_links": 0
+      },
+      {
+        "title": "MISOPROSTOL-ONLY RECOMMENDED REGIMENS 2017",
+        "page_start": 110,
+        "page_end": 134,
+        "ref_links": 1
+      },
+      {
+        "title": "6. 3.1 Eclampsia drill",
+        "page_start": 125,
+        "page_end": 130,
+        "ref_links": 0
+      },
+      {
+        "title": "FIGO recommendations",
+        "page_start": 130,
+        "page_end": 137,
+        "ref_links": 0
+      },
+      {
+        "title": "5. **Perimenopausal",
+        "page_start": 137,
+        "page_end": 161,
+        "ref_links": 0
+      },
+      {
+        "title": "7. PROCEDURES IN PLACE FOR COMPLIANCE TO PATIENT RIGHTS AND RESPONSIBITIES",
+        "page_start": 161,
+        "page_end": 165,
+        "ref_links": 0
+      },
+      {
+        "title": "8. PROCEDURES IN PLACE FOR MANAGING MEDICATION",
+        "page_start": 165,
+        "page_end": 165,
+        "ref_links": 0
+      },
+      {
+        "title": "1. OPD Prescription",
+        "page_start": 165,
+        "page_end": 165,
+        "ref_links": 0
+      },
+      {
+        "title": "2. Dispensing medications in OPD",
+        "page_start": 165,
+        "page_end": 165,
+        "ref_links": 0
+      },
+      {
+        "title": "3. IP Prescription and administration of medications",
+        "page_start": 165,
+        "page_end": 169,
+        "ref_links": 0
+      },
+      {
+        "title": "9. PROCEDURES IN PLACE FOR MONITORING QUALITY OF SERVICES",
+        "page_start": 169,
+        "page_end": 170,
+        "ref_links": 0
+      },
+      {
+        "title": "10. PROCEDURES FOLLOWED FOR THE PATIENT/STAFF SAFETY",
+        "page_start": 170,
+        "page_end": 174,
+        "ref_links": 0
+      },
+      {
+        "title": "11. LEGAL REQUIREMENTS",
+        "page_start": 174,
+        "page_end": 175,
+        "ref_links": 0
+      },
+      {
+        "title": "12. CONTINUOUS LEARNING /TRAINING INITIATIVES",
+        "page_start": 175,
+        "page_end": 176,
+        "ref_links": 0
+      },
+      {
+        "title": "13. INFORMATION MANAGEMENT SYSTEM",
+        "page_start": 176,
+        "page_end": 177,
+        "ref_links": 0
+      },
+      {
+        "title": "14. KEY PERFORMANCE INDICATORS",
+        "page_start": 177,
+        "page_end": 178,
+        "ref_links": 0
+      },
+      {
+        "title": "15. CLINICAL AUDITS",
+        "page_start": 178,
+        "page_end": 179,
+        "ref_links": 0
+      },
+      {
+        "title": "16. DOCUMENTATION CONTROL",
+        "page_start": 179,
+        "page_end": 180,
+        "ref_links": 0
+      }
+    ]
+  }
+}
