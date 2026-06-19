@@ -10,6 +10,14 @@ app_license = "mit"
 
 # required_apps = []
 
+# SPA (Frappe UI) mounted at /wikify — served by www/wikify.py + the built
+# www/wikify.html (emitted by the frappe-ui vite plugin's frontendRoute).
+website_route_rules = [
+	{"from_route": "/wikify/<path:app_path>", "to_route": "wikify"},
+]
+
+app_icon_route = "/wikify"
+
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
 # 	{

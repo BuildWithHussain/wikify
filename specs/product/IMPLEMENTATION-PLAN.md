@@ -82,13 +82,14 @@ into `scratch/` or uploaded ad hoc; reuse the POC's sample PDFs where possible.
 **Blocked by:** none.
 
 ### What to build
-Clone the CRM frontend skeleton and stand up an empty, authenticated SPA at
+Adapt the gameplan frontend skeleton and stand up an empty, authenticated SPA at
 `/wikify`. No DocTypes, no pipeline — just the shell everything mounts into.
 
-- `wikify/frontend/` from `apps/crm/frontend/`: `main.js` (createApp + FrappeUI +
-  router + socket), `router.js` (`createWebHistory` + `beforeEach` auth guard),
-  `socket.js` (`initSocket`), `vite.config.js` (`frappe-ui/vite` plugin,
-  `buildConfig.indexHtmlPath`), pinia `session` store.
+- `wikify/frontend/` adapted from `apps/gameplan/frontend/` (frappe-ui
+  `1.0.0-beta.10`): `main.js` (createApp + router + FrappeUI + initSocket),
+  `router.js` (`createWebHistory(__FRONTEND_ROUTE__)` + `beforeEach` auth guard),
+  `socket.js` (`initSocket`), `vite.config.js` (`frappeui({ frontendRoute: '/wikify' })`),
+  a cookie-based reactive `session` store in `src/data/`.
 - `wikify/www/wikify.html` (Jinja host + `<div id="app">` + boot injection) and
   `wikify/www/wikify.py` (`get_context()` auth gate + boot).
 - `hooks.py`: `website_route_rules` → SPA, `app_icon_route = "/wikify"`.
@@ -96,8 +97,8 @@ Clone the CRM frontend skeleton and stand up an empty, authenticated SPA at
   **Imports** route. Follow the frappe-ui skill for layout/tokens (48px sticky
   header, `body-container`, semantic tokens only).
 - Extra deps wired: `splitpanes`, `vuedraggable@^4`, `pdfjs-dist` (no CodeMirror —
-  `CodeEditor` self-loads). Pin Tailwind v3 + Vite 5; `optimizeDeps.exclude:
-  ['frappe-ui']`.
+  `CodeEditor` self-loads). Tailwind v3 + Vite 8; the `frappeui({ frontendRoute })`
+  plugin handles proxy/boot/build (no manual `optimizeDeps.exclude`).
 
 ### Acceptance criteria
 - [ ] Visiting `/wikify` unauthenticated redirects to login; authenticated renders the shell.

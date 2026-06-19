@@ -77,8 +77,9 @@ Full schema in `02-data-model.md`. Mapping summary:
 
 ### 3. The SPA — `wikify/frontend/`
 
-Vue 3 + frappe-ui, built by Vite, served from a www Jinja page, mounted at
-`/wikify`. Cloned from the CRM frontend skeleton. Details in `04-frontend-plan.md`.
+Vue 3 + frappe-ui v1 (`1.0.0-beta.10`), built by Vite 8, served from a www Jinja page,
+mounted at `/wikify`. Scaffold adapted from frappe/gameplan's frontend. Details in
+`04-frontend-plan.md`.
 
 ## Backgrounding & progress
 

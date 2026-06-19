@@ -64,8 +64,10 @@ Each phase is a vertical slice that ends in something usable.
 
 ## Key reuse decisions (grounded in the bench)
 
-- **Frontend scaffold:** clone `apps/crm/frontend/` (main.js + vite.config.js + www
-  html/py + router guard + socket.js + `website_route_rules`).
+- **Frontend scaffold:** adapted from **frappe/gameplan**'s frontend — the live
+  **frappe-ui v1 (`1.0.0-beta.10`)** reference (the bench's CRM is on an older `0.1.x`).
+  main.js + `frappeui({ frontendRoute })` vite config + www py + router guard +
+  socket.js + `website_route_rules`. See `04-frontend-plan.md` → Stack & setup.
 - **Wiki target:** the live model is **Wiki Document** (nested-set tree under a Wiki
   Space's `root_group`); legacy `Wiki Page` is hard-deprecated. Create pages with
   `frappe.new_doc("Wiki Document").insert()`; content is raw **Markdown**.

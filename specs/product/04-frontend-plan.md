@@ -1,7 +1,8 @@
 # 04 — Frontend Plan (Frappe UI SPA)
 
-Phase-by-phase frontend work. Scaffold cloned from `apps/crm/frontend/`, upgraded to
-**frappe-ui v1**. Follow the bundled **frappe-ui skill** (`skills/frappe-ui/`:
+Phase-by-phase frontend work. Scaffold adapted from **frappe/gameplan**'s frontend
+(the live **frappe-ui v1 / `1.0.0-beta.10`** reference — the bench's CRM is on an
+older `0.1.x` and was not used). Follow the bundled **frappe-ui skill** (`skills/frappe-ui/`:
 SKILL · COMPONENTS · PATTERNS · TOKENS · SETUP) for layout, tokens, and data-fetching
 conventions; authoritative component index at `ui.frappe.io/llms.txt`. All UI comes
 from frappe-ui except two pieces it doesn't ship: a **resizable split-pane**
@@ -20,15 +21,16 @@ via `[data-theme="dark"]`.
 ```
 wikify/frontend/
   src/
-    main.js            # createApp + FrappeUI + router + socket  (copy CRM)
-    router.js          # createWebHistory, beforeEach auth guard (copy CRM)
-    socket.js          # initSocket + realtime listeners         (copy CRM)
-    stores/            # pinia: session, currentImport
+    main.js            # createApp + router + FrappeUI + initSocket; dev pulls boot
+    router.js          # createWebHistory(__FRONTEND_ROUTE__ + '/'), beforeEach auth guard
+    socket.js          # initSocket + refetch_resource listener
+    data/              # reactive stores: session (cookie-based), currentImport
+    utils/             # useTheme (light/dark/system) + helpers
     pages/             # route components
-    components/        # screen-specific components
-  vite.config.js       # frappe-ui/vite plugin, buildConfig.indexHtmlPath
-wikify/www/wikify.html # Jinja host with <div id="app"> + boot injection
-wikify/www/wikify.py   # get_context() auth gate + boot
+    components/        # AppShell (sidebar + dark toggle) + screen-specific components
+  vite.config.js       # frappeui({ frontendRoute: '/wikify' }) + vue
+wikify/www/wikify.py   # get_context() Guest→login gate + boot; get_context_for_dev (dev)
+wikify/www/wikify.html # build artifact — emitted by the vite plugin (gitignored)
 ```
 
 `hooks.py`: `website_route_rules = [{"from_route": "/wikify/<path:app_path>",
@@ -39,10 +41,17 @@ wikify/www/wikify.py   # get_context() auth gate + boot
 with `#page=N`. **No CodeMirror deps needed** — the markdown editor is frappe-ui's
 `CodeEditor` (it lazy-loads CodeMirror 6 + `@codemirror/lang-markdown` itself).
 
-**Setup gotchas (skill SETUP.md):** pin Tailwind v3 + Vite 5; `app.use(FrappeUI)` and
-mount `<FrappeUIProvider>` once; `optimizeDeps.exclude: ['frappe-ui']`; import via the
-`exports` subpaths (`frappe-ui`, `frappe-ui/code-editor`, `frappe-ui/vite`); use the
-`frappe-ui/vite` plugin with `frappeProxy` + `jinjaBootData`.
+**Stack & setup (as built in Slice 1a):** **frappe-ui `1.0.0-beta.10` + Vite 8 +
+Tailwind 3.4** (yarn, matching the bench). The single source of integration truth is
+the `frappeui({ frontendRoute: '/wikify' })` vite plugin — it defines
+`__FRONTEND_ROUTE__`, wires the dev proxy + jinja boot, builds to
+`wikify/public/frontend/`, and **emits the host page to `wikify/www/wikify.html`**
+(gitignored, like gameplan's `g.html`). `app.use(FrappeUI)` + one `<FrappeUIProvider>`;
+import via the `exports` subpaths (`frappe-ui`, `frappe-ui/code-editor`,
+`frappe-ui/vite`). In dev, `main.js` fetches boot from the whitelisted
+`get_context_for_dev` and stashes it on `window`; prod gets it inline from
+`www/wikify.py`. (This supersedes the earlier Vite-5 / `buildConfig.indexHtmlPath` /
+`optimizeDeps.exclude:['frappe-ui']` plan — the `frontendRoute` plugin handles it.)
 
 ## Routes
 
