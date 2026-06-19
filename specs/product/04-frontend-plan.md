@@ -1,8 +1,19 @@
 # 04 — Frontend Plan (Frappe UI SPA)
 
-Phase-by-phase frontend work. Scaffold cloned from `apps/crm/frontend/`. All
-components from frappe-ui except the two documented gaps (CodeMirror markdown editor,
-splitpanes).
+Phase-by-phase frontend work. Scaffold cloned from `apps/crm/frontend/`, upgraded to
+**frappe-ui v1**. Follow the bundled **frappe-ui skill** (`skills/frappe-ui/`:
+SKILL · COMPONENTS · PATTERNS · TOKENS · SETUP) for layout, tokens, and data-fetching
+conventions; authoritative component index at `ui.frappe.io/llms.txt`. All UI comes
+from frappe-ui except two pieces it doesn't ship: a **resizable split-pane**
+(`splitpanes`) and a **drag-rearrange tree** (`vuedraggable`).
+
+**Layout conventions (from the skill's PATTERNS/TOKENS):** app shell =
+`FrappeUIProvider` + `Sidebar` + `<router-view>`; every page has a 48px (`min-h-12`)
+sticky header with `Breadcrumbs` + actions; body wrapped in a `body-container`
+(`mx-auto max-w-[940px] px-3 sm:px-5`); **semantic tokens only** (`bg-surface-*`,
+`text-ink-*`, `border-outline-*` — never raw gray); color via `variant` + `theme`;
+exactly one `variant="solid" theme="gray"` primary action per page; verify dark mode
+via `[data-theme="dark"]`.
 
 ## Scaffold (Phase 0)
 
@@ -23,10 +34,15 @@ wikify/www/wikify.py   # get_context() auth gate + boot
 `hooks.py`: `website_route_rules = [{"from_route": "/wikify/<path:app_path>",
 "to_route": "wikify"}]`, `app_icon_route = "/wikify"`.
 
-**Extra deps** (beyond frappe-ui): `vue-codemirror`, `codemirror`,
-`@codemirror/lang-markdown`, `@codemirror/theme-one-dark` (copy LMS); `splitpanes`;
-`vuedraggable@^4` (for the tree); `pdfjs-dist` (PDF tab) or use an `<iframe>` to the
-File URL with `#page=N`.
+**Extra deps** (beyond frappe-ui v1): `splitpanes` (resizable two-column);
+`vuedraggable@^4` (drag tree); `pdfjs-dist` (PDF tab) or an `<iframe>` to the File URL
+with `#page=N`. **No CodeMirror deps needed** — the markdown editor is frappe-ui's
+`CodeEditor` (it lazy-loads CodeMirror 6 + `@codemirror/lang-markdown` itself).
+
+**Setup gotchas (skill SETUP.md):** pin Tailwind v3 + Vite 5; `app.use(FrappeUI)` and
+mount `<FrappeUIProvider>` once; `optimizeDeps.exclude: ['frappe-ui']`; import via the
+`exports` subpaths (`frappe-ui`, `frappe-ui/code-editor`, `frappe-ui/vite`); use the
+`frappe-ui/vite` plugin with `frappeProxy` + `jinjaBootData`.
 
 ## Routes
 
@@ -84,14 +100,15 @@ filters={source_document})`.
    This is the source of truth.
 2. **Snapshot** — the stored PNG (`image`): *what the models actually saw* (150 DPI).
    Distinct from tab 1 on purpose — for trust/debugging the parse.
-3. **Markdown** — **CodeMirror 6** (`@codemirror/lang-markdown`), syntax-highlighted,
-   read-only in v1 (the brief's "markdown syntax highlighted code editor"). Shows
-   `canonical_markdown`. A sub-toggle **Baseline ⇄ Remediated** reveals the
-   before/after when a remediation exists (`baseline_markdown` vs
-   `remediation_markdown`), with the score delta and the adopted flag — the POC's
-   3-column escalation view, condensed.
-4. *(Phase 6)* **Edits** — editable CodeMirror writing `edited_markdown`, with a diff
-   against canonical and an edit indicator.
+3. **Markdown** — frappe-ui **`CodeEditor`** (`frappe-ui/code-editor`,
+   `language="markdown"`, `:disabled="true"` for read-only v1) — the brief's "markdown
+   syntax highlighted code editor", now built in. Shows `canonical_markdown`. A
+   `TabButtons` toggle **Source ⇄ Preview** swaps to **`CodePreview`** (rendered
+   markdown) and **Baseline ⇄ Remediated** reveals the before/after when a remediation
+   exists (`baseline_markdown` vs `remediation_markdown`), with score delta + adopted
+   flag — the POC's 3-column escalation view, condensed.
+4. *(Phase 6)* **Edits** — flip `CodeEditor` to editable (`v-model` →
+   `edited_markdown`), diff against canonical, edit indicator.
 
 **Scores strip**: recall / extra / table / judge / composite + verdict; honest metrics
 line for visual pages (judge-dominant), as the POC surfaces.

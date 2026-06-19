@@ -14,7 +14,7 @@
 │     │              └─ Wiki    (generate into a Wiki Space)            │
 │     └─ New Import dialog (PDF + name)                                 │
 └───────────────┬───────────────────────────────────┬─────────────────┘
-        REST (createResource / useList / call)   realtime (socket.io)
+        REST (useCall / useList / useDoc)         realtime (socket.io)
                 │                                       │
 ┌───────────────▼───────────────────────────────────────▼─────────────┐
 │  Frappe backend  (app: wikify)                                        │
@@ -121,17 +121,20 @@ approves to advance). `Parsing`, `Remediating`, `Generating Wiki` are job-owned.
 
 | Need | Use | Source |
 |---|---|---|
-| Imports list | `ListView` + `ListFilter` | frappe-ui |
-| New Import dialog | `Dialog` + FileUploader + Input | frappe-ui |
-| Progress bar | `Progress` / `Spinner` | frappe-ui |
-| Tabs in Import detail | `Tabs` | frappe-ui |
-| **Markdown source editor** | **CodeMirror 6** (`vue-codemirror` + `@codemirror/lang-markdown`) | copy LMS — *not* frappe-ui `TextEditor` |
+| App shell | `FrappeUIProvider` + `Sidebar` | frappe-ui v1 |
+| Imports list | `ListView` + `ListFilter` (`ItemListRow` for custom rows) | frappe-ui v1 |
+| New Import dialog | `Dialog` + `FileUploader` + `FormControl` | frappe-ui v1 |
+| Confirms / quick prompts | imperative `dialog.confirm` / `dialog.prompt`, `toast.*` | frappe-ui v1 |
+| Progress bar | `Progress` / `Spinner` / `LoadingText` | frappe-ui v1 |
+| Tabs / segmented filters | `Tabs` / `TabButtons` | frappe-ui v1 |
+| **Markdown source editor** | **`CodeEditor`** (`frappe-ui/code-editor`, `language="markdown"`) + **`CodePreview`** | **frappe-ui v1 (built in)** |
 | **Split pane (page review)** | **`splitpanes`** | external |
 | **Drag-rearrange tree** | **vuedraggable**, modeled on `NestedDraggable.vue` | copy/adapt from `apps/wiki` |
-| Tree display (read-only previews) | `Tree` | frappe-ui |
-| Section explorer | `ListView` + type filter chips | frappe-ui |
+| Tree display (read-only previews) | `Tree` (display-only) | frappe-ui v1 |
+| Section explorer | `ListView` + `Badge` type-filter chips | frappe-ui v1 |
+| Status badges | `Badge` (`variant`/`theme`) | frappe-ui v1 |
 | PDF page render (tab 1) | PDF.js | external (or `<iframe>` to the File) |
-| Data fetching | `useList` / `useDoc` / `createResource` / `call` | frappe-ui |
+| Data fetching | **`useCall` / `useList` / `useDoc`** (v3; *not* legacy `createResource`) | frappe-ui v1 |
 | Live updates | socket / `frappe.realtime` | frappe-ui `initSocket` |
 
 ## Why Import and Source Document are separate (1:1)

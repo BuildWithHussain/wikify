@@ -70,9 +70,22 @@ Each phase is a vertical slice that ends in something usable.
   `frappe.new_doc("Wiki Document").insert()`; content is raw **Markdown**.
 - **Drag tree:** model after `apps/wiki/frontend/src/components/NestedDraggable.vue`
   (vuedraggable, arbitrary-depth reparent + reorder).
-- **Two gaps frappe-ui does NOT ship** — add them:
-  - **Markdown source editor** → CodeMirror 6 + `@codemirror/lang-markdown`
-    (`vue-codemirror`, copy LMS). frappe-ui's `TextEditor` is TipTap rich-text, wrong tool.
+- **Markdown editor is now built in (frappe-ui v1):** `CodeEditor`
+  (`frappe-ui/code-editor`, `language="markdown"`, CodeMirror 6, lazy-loaded) for the
+  source pane + `CodePreview` (marked + DOMPurify) for the rendered view. **The earlier
+  "add vue-codemirror / copy LMS" plan is dropped** — v1 ships it. (`TextEditor` /
+  the `frappe-ui/editor` molecule are TipTap rich-text — not used here.)
+- **Two things still not in frappe-ui** — add them:
   - **Resizable split pane** → `splitpanes` (or a small custom drag handle).
-- **Everything else from frappe-ui:** `ListView`, `Dialog`/`confirmDialog`, `Tabs`,
-  `Progress`/`Spinner`, `Tree` (display), `useList`/`useDoc`/`call`, realtime socket.
+  - **Drag-rearrange tree** → `vuedraggable`, modeled on wiki's `NestedDraggable.vue`
+    (frappe-ui `Tree` is display-only — fine for the read-only wiki-projection preview).
+- **Everything else from frappe-ui v1:** `ListView`, `ItemListRow`, `Dialog` +
+  imperative `dialog.confirm/prompt` + `toast.*`, `Tabs`/`TabButtons`, `Sidebar`,
+  `Progress`/`Spinner`, `Badge`, `FileUploader`, and **`useCall`/`useList`/`useDoc`**
+  for data (the v3 path — *not* the legacy `createResource` family), realtime socket.
+- **Follow the frappe-ui skill** (`skills/frappe-ui/` in the upstream repo:
+  SKILL/COMPONENTS/PATTERNS/TOKENS/SETUP) for layout + tokens: app shell =
+  `FrappeUIProvider` + `Sidebar`; 48px sticky page header with `Breadcrumbs`;
+  `body-container` (`max-w-[940px]`, `px-3 sm:px-5`); semantic tokens only
+  (`bg-surface-*`, `text-ink-*`, `border-outline-*`); color = `variant` + `theme`;
+  one solid primary action per page. Authoritative index: `ui.frappe.io/llms.txt`.
