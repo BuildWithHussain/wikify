@@ -29,13 +29,14 @@ that skeleton rather than adding a new disconnected layer.
 | 2 | Page scoring + review split-pane | HITL | 1b | 2 | ✅ Done |
 | 3 | Remediation (cleanup / VLM) + canonical | AFK | 2 | 2 | ✅ Done |
 | 4 | Sectionize → Source Section tree (read-only) | AFK | 1b | 1 + 3 | ✅ Done |
-| 5 | Tree drag-review + graph approval | HITL | 4 | 3 | — |
+| 5 | Tree drag-review + graph approval | HITL | 4 | 3 | ✅ Done |
 | 6 | Classification + Explore (cross-document) | HITL | 4 | 4 | — |
 | 7 | Wiki generation (tree → Wiki Documents) | AFK | 5, 6 | 5 | — |
 | 8 | Inline editing (later) | AFK | 2 | 6 | — |
 
-> **Progress** (on `main`): **1a** ✅ `c127f8b` · **1b** ✅ `bfec780` · **2** ✅ · **3** ✅ · **4** ✅.
-> All verified on `pdf.localhost` per each slice's Verify steps. Up next: **Slice 5**.
+> **Progress** (on `main`): **1a** ✅ `c127f8b` · **1b** ✅ `bfec780` · **2** ✅ · **3** ✅ · **4** ✅ · **5** ✅.
+> All verified on `pdf.localhost` per each slice's Verify steps. Up next: **Slice 6** (Classification +
+> Explore — can also proceed off 4 in parallel) or **7** once 6 lands.
 
 Dependency spine is mostly linear (it is a pipeline). Parallelism: **6** can proceed
 off **4** alongside **5**; **8** floats off **2**.
@@ -362,6 +363,7 @@ remediation and confirm the rebuilt tree still reflects adopted (not empty) mark
 
 **Type:** HITL (drag interaction design review).
 **Blocked by:** 4.
+**Status:** ✅ Done — `main`.
 
 ### What to build
 - **UI:** `SectionTree.vue` via `vuedraggable`, adapted from wiki's
@@ -374,14 +376,48 @@ remediation and confirm the rebuilt tree still reflects adopted (not empty) mark
   `Wikify Import.status=Graphed`; unlocks Explore + Wiki tabs.
 
 ### Acceptance criteria
-- [ ] Drag-reparent/reorder persists and survives reload.
-- [ ] Rename / include-toggle / delete persist.
-- [ ] **Approve & Build Graph** advances state and enables Explore + Wiki.
+- [x] Drag-reparent/reorder persists and survives reload.
+- [x] Rename / include-toggle / delete persist.
+- [x] **Approve & Build Graph** advances state (Explore/Wiki tabs land in Slices 6/7).
 
 **Verify:** UI — drag a section to a new parent and reorder siblings, **reload**, and
 confirm it stuck; rename / toggle include / delete persist. In `console` confirm
 NestedSet `lft`/`rgt` and `hierarchy_path`/`level` recomputed for the moved subtree.
-Click **Approve & Build Graph** → `status=Graphed` and Explore/Wiki tabs enable.
+Click **Approve & Build Graph** → `status=Graphed`.
+
+### As-built notes (reconciled)
+- **Two HITL decisions (2026-06-20):** the tree stays **always editable** — `build_graph`
+  is a milestone (advances status + unlocks downstream), *not* a freeze; re-running it
+  re-approves (button reads "Rebuild graph" once Graphed). Include-toggle and delete
+  **cascade to the whole subtree**.
+- **API (`wikify/api/sections.py`):** `reorder_section(name, new_parent, new_index, siblings)`,
+  `rename_section`, `toggle_include` (cascade), `delete_section` (cascade), `build_graph`.
+  All structural edits funnel through `_rebuild_tree(source_document)` — one DFS that
+  re-derives `lft`/`rgt` **and** the denorm `level` / `hierarchy_path` / `is_group` (a node
+  is a group iff it actually has children now), siblings ordered by `sort_order` then
+  `name`. Mirrors the wiki app's `reorder_wiki_documents` / `rebuild_wiki_tree`, scoped to
+  one doc (each Source Document is an independent NestedSet number-space). Reparent guards
+  against cycles via `lft`/`rgt` containment; delete raw-deletes the subtree then rebuilds.
+  `build_graph` sets both `Wikify Import.status` and `Source Document.status` to `Graphed`.
+- **UI:** `SectionTree.vue` left pane is now a recursive `SectionDraggable.vue`
+  (`vuedraggable`, single shared `group`, handle-only grip drag, expand/collapse, inline
+  rename input, per-row ⋯ Dropdown → Rename / Include-Exclude / Delete, excluded rows
+  shown struck-through/dimmed). Drag/rename/toggle send optimistically then `sections.reload()`
+  to pick up the server-rebuilt denorm fields (and to revert on error — `useCall.submit`
+  resolves rather than rejects, so the wrapper inspects `.error`). Delete goes through a
+  cascade-aware confirm `Dialog` (counts the subtree). Header gains a **Approve & Build
+  Graph** / **Rebuild graph** button + a **Graphed** badge; `ImportDetail` passes
+  `import-name`/`status` and reloads on `@graphed`.
+- **Gotcha:** the ⋯ trigger must **not** `@click.stop` — that swallows the click frappe-ui
+  `Dropdown` needs to open (only the title button stops propagation, for row selection).
+- Tests: `wikify/tests/test_section_edits.py` (8) — reparent recompute, cycle reject,
+  root-clear, rename path cascade, include cascade, delete cascade, build_graph transition.
+  Verified live on `pdf.localhost` (reparent/rename/cascade-toggle/cascade-delete persist
+  across reload; Approve flips status to Graphed). **Automation caveat:** agent-browser's
+  synthetic clicks don't fire reka-ui Dropdown/Button or the SortableJS drag gesture
+  (confirmed against the known-good Remediate dropdown) — the drag/menu *triggers* were
+  driven through the real v2 endpoints via the page's authenticated fetch; `build_graph`
+  was driven through its real button handler.
 
 ### Spec refs
 [03-backend-plan Phase 3](03-backend-plan.md#phase-3--tree-review--graph-approval) ·

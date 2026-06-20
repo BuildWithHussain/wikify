@@ -197,6 +197,9 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 						ref="sectionTree"
 						:source-document="imp.doc?.source_document"
 						:doc-title="imp.doc?.import_title || name"
+						:import-name="name"
+						:status="status"
+						@graphed="imp.reload()"
 					/>
 				</div>
 			</template>

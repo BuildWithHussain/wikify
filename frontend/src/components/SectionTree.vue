@@ -1,18 +1,20 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { Badge, Tree, useList } from "frappe-ui";
+import { Badge, Button, Dialog, useCall, useList, toast } from "frappe-ui";
 import { CodeEditor } from "frappe-ui/code-editor";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
+import SectionDraggable from "@/components/SectionDraggable.vue";
 
 const props = defineProps({
 	sourceDocument: { type: String, default: null },
 	docTitle: { type: String, default: "Document" },
+	importName: { type: String, default: null },
+	status: { type: String, default: null },
 });
+const emit = defineEmits(["graphed"]);
 
 // Flat sections ordered by tree position (`lft`); the nesting is rebuilt client-side.
-// useList with a computed filter refetches when the source document resolves (read-only
-// here — drag-reorder lands in Slice 5).
 const sections = useList({
 	doctype: "Source Section",
 	fields: [
@@ -26,6 +28,7 @@ const sections = useList({
 		"page_start",
 		"page_end",
 		"sort_order",
+		"include_in_wiki",
 		"markdown",
 	],
 	filters: computed(() => ({ source_document: props.sourceDocument || "__none__" })),
@@ -37,49 +40,128 @@ defineExpose({ reload: () => sections.reload() });
 
 const sectionCount = computed(() => (sections.data || []).length);
 
-// Rebuild the parent→children nesting from the flat, lft-ordered rows.
-const roots = computed(() => {
-	const byName = {};
-	for (const r of sections.data || []) byName[r.name] = { ...r, children: [] };
-	const out = [];
-	for (const r of sections.data || []) {
-		const parent = r.parent_source_section;
-		if (parent && byName[parent]) byName[parent].children.push(byName[r.name]);
-		else out.push(byName[r.name]);
-	}
-	return out;
-});
-
-// The Tree component takes a single root; wrap the doc's top-level sections under a
-// synthetic document node so the whole tree renders expanded.
-const rootNode = computed(() => ({
-	name: "__root__",
-	title: props.docTitle,
-	is_group: 1,
-	children: roots.value,
-}));
-
-// Flat index for the detail pane lookup.
+// Reactive nested tree (vuedraggable mutates these child arrays in place); rebuilt from
+// the flat rows whenever the server data changes.
+const tree = ref([]);
 const byName = computed(() => {
 	const out = {};
 	for (const r of sections.data || []) out[r.name] = r;
 	return out;
 });
 
-const selectedName = ref(null);
-const selected = computed(() => byName.value[selectedName.value] || null);
-
-// Default to the first top-level section once the tree loads.
 watch(
-	roots,
-	(list) => {
-		if (list.length && !byName.value[selectedName.value]) selectedName.value = list[0].name;
+	() => sections.data,
+	(rows) => {
+		const nodes = {};
+		for (const r of rows || []) nodes[r.name] = { ...r, children: [] };
+		const roots = [];
+		for (const r of rows || []) {
+			const parent = r.parent_source_section;
+			if (parent && nodes[parent]) nodes[parent].children.push(nodes[r.name]);
+			else roots.push(nodes[r.name]);
+		}
+		tree.value = roots;
+		if (roots.length && !byName.value[selectedName.value]) selectedName.value = roots[0].name;
 	},
-	{ immediate: true },
+	{ immediate: true, deep: false },
 );
 
+const selectedName = ref(null);
+const selected = computed(() => byName.value[selectedName.value] || null);
+function onSelect(name) {
+	selectedName.value = name;
+}
+
+// --- Mutations -----------------------------------------------------------------------
+// useCall.submit resolves (doesn't reject) on a server error and sets `.error`, so we
+// inspect that. Every mutation re-reads the list from the server to pick up the
+// re-derived lft/level/hierarchy_path/is_group (and to revert an optimistic drag on
+// failure).
+const mutating = ref(false);
+async function mutate(call, params) {
+	mutating.value = true;
+	try {
+		await call.submit(params);
+		if (call.error) throw call.error;
+	} catch (e) {
+		toast.error(e?.messages?.[0] || e?.message || "Could not save change");
+	} finally {
+		await sections.reload();
+		mutating.value = false;
+	}
+}
+
+const reorder = useCall({
+	url: "/api/v2/method/wikify.api.sections.reorder_section",
+	method: "POST",
+	immediate: false,
+});
+const rename = useCall({
+	url: "/api/v2/method/wikify.api.sections.rename_section",
+	method: "POST",
+	immediate: false,
+});
+const toggle = useCall({
+	url: "/api/v2/method/wikify.api.sections.toggle_include",
+	method: "POST",
+	immediate: false,
+});
+const remove = useCall({
+	url: "/api/v2/method/wikify.api.sections.delete_section",
+	method: "POST",
+	immediate: false,
+});
+const graph = useCall({
+	url: "/api/v2/method/wikify.api.sections.build_graph",
+	method: "POST",
+	immediate: false,
+});
+
+function onMove({ name, newParent, siblings }) {
+	mutate(reorder, { name, new_parent: newParent, new_index: siblings.indexOf(name), siblings });
+}
+function onRename(name, title) {
+	mutate(rename, { name, title });
+}
+function onToggle(name, include) {
+	mutate(toggle, { name, include: include ? 1 : 0 });
+}
+
+// Delete with a cascade-aware confirm.
+const pendingDelete = ref(null);
+const deleteOpen = computed({
+	get: () => !!pendingDelete.value,
+	set: (v) => {
+		if (!v) pendingDelete.value = null;
+	},
+});
+function subtreeSize(node) {
+	return 1 + (node.children || []).reduce((n, c) => n + subtreeSize(c), 0);
+}
+function onRemove(node) {
+	pendingDelete.value = node;
+}
+function confirmDelete() {
+	const node = pendingDelete.value;
+	pendingDelete.value = null;
+	if (selectedName.value === node.name) selectedName.value = null;
+	mutate(remove, { name: node.name });
+}
+
+// --- Approve & build graph -----------------------------------------------------------
+const isGraphed = computed(() => props.status === "Graphed");
+async function buildGraph() {
+	try {
+		await graph.submit({ import_name: props.importName });
+		toast.success("Graph built — Explore & Wiki unlocked");
+		emit("graphed");
+	} catch (e) {
+		toast.error(e?.messages?.[0] || e?.message || "Could not build graph");
+	}
+}
+
 function pageRange(node) {
-	if (!node || node.name === "__root__") return null;
+	if (!node || node.page_start == null) return null;
 	return node.page_start === node.page_end
 		? `p${node.page_start}`
 		: `p${node.page_start}–${node.page_end}`;
@@ -88,7 +170,10 @@ function pageRange(node) {
 
 <template>
 	<div class="h-full">
-		<p v-if="sections.loading && !sections.data" class="py-10 text-center text-sm text-ink-gray-5">
+		<p
+			v-if="sections.loading && !sections.data"
+			class="py-10 text-center text-sm text-ink-gray-5"
+		>
 			Loading sections…
 		</p>
 		<p v-else-if="!sectionCount" class="py-10 text-center text-sm text-ink-gray-5">
@@ -96,59 +181,41 @@ function pageRange(node) {
 		</p>
 
 		<Splitpanes v-else class="h-full">
-			<!-- Left: the section tree -->
+			<!-- Left: the editable section tree -->
 			<Pane :size="40" :min-size="25" class="flex flex-col border-r border-outline-gray-1">
 				<div
 					class="flex items-center gap-2 border-b border-outline-gray-1 px-3 py-2 text-sm text-ink-gray-6"
 				>
 					<span class="font-medium text-ink-gray-8">Sections</span>
 					<Badge :label="String(sectionCount)" theme="gray" variant="subtle" size="sm" />
+					<Badge
+						v-if="isGraphed"
+						label="Graphed"
+						theme="green"
+						variant="subtle"
+						size="sm"
+					/>
+					<span v-if="mutating" class="text-xs text-ink-gray-4">Saving…</span>
+					<Button
+						class="ml-auto"
+						size="sm"
+						variant="solid"
+						:label="isGraphed ? 'Rebuild graph' : 'Approve & Build Graph'"
+						:loading="graph.loading"
+						@click="buildGraph"
+					/>
 				</div>
 				<div class="flex-1 overflow-auto p-2">
-					<Tree
-						:node="rootNode"
-						node-key="name"
-						:options="{
-							defaultCollapsed: false,
-							rowHeight: '28px',
-							indentWidth: '16px',
-							showIndentationGuides: true,
-						}"
-					>
-						<template #label="{ node }">
-							<button
-								class="flex min-w-0 flex-1 items-center gap-2 rounded px-1.5 py-0.5 text-left hover:bg-surface-gray-2"
-								:class="
-									selectedName === node.name && node.name !== '__root__'
-										? 'bg-surface-gray-3'
-										: ''
-								"
-								@click.stop="node.name !== '__root__' && (selectedName = node.name)"
-							>
-								<span
-									class="truncate text-sm"
-									:class="
-										node.name === '__root__'
-											? 'font-medium text-ink-gray-9'
-											: 'text-ink-gray-8'
-									"
-									>{{ node.title }}</span
-								>
-								<Badge
-									v-if="node.section_type"
-									:label="node.section_type"
-									theme="blue"
-									variant="subtle"
-									size="sm"
-								/>
-								<span
-									v-if="pageRange(node)"
-									class="ml-auto shrink-0 text-xs tabular-nums text-ink-gray-4"
-									>{{ pageRange(node) }}</span
-								>
-							</button>
-						</template>
-					</Tree>
+					<SectionDraggable
+						:list="tree"
+						:parent-name="null"
+						:selected-name="selectedName"
+						:on-select="onSelect"
+						:on-move="onMove"
+						:on-rename="onRename"
+						:on-toggle="onToggle"
+						:on-remove="onRemove"
+					/>
 				</div>
 			</Pane>
 
@@ -173,6 +240,13 @@ function pageRange(node) {
 								variant="subtle"
 								size="sm"
 							/>
+							<Badge
+								v-if="!selected.include_in_wiki"
+								label="Excluded"
+								theme="orange"
+								variant="subtle"
+								size="sm"
+							/>
 						</div>
 						<p class="mt-1 truncate text-xs text-ink-gray-5">
 							{{ selected.hierarchy_path }}
@@ -193,5 +267,24 @@ function pageRange(node) {
 				</p>
 			</Pane>
 		</Splitpanes>
+
+		<!-- Cascade-aware delete confirm -->
+		<Dialog v-model:open="deleteOpen" title="Delete section">
+			<template #default>
+				<p class="text-base text-ink-gray-7">
+					Delete
+					<span class="font-medium text-ink-gray-9">{{ pendingDelete?.title }}</span
+					><template v-if="pendingDelete && subtreeSize(pendingDelete) > 1">
+						and its {{ subtreeSize(pendingDelete) - 1 }} nested section{{
+							subtreeSize(pendingDelete) - 1 === 1 ? "" : "s"
+						}}</template
+					>? This can't be undone.
+				</p>
+			</template>
+			<template #actions>
+				<Button variant="ghost" label="Cancel" @click="pendingDelete = null" />
+				<Button variant="solid" theme="red" label="Delete" @click="confirmDelete" />
+			</template>
+		</Dialog>
 	</div>
 </template>
