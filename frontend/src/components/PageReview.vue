@@ -25,12 +25,23 @@ const pages = useList({
 		"table_score",
 		"judge_score",
 		"notes",
+		"remediation_method",
+		"remediation_adopted",
+		"remediation_composite",
+		"remediation_notes",
+		"remediation_markdown",
+		"canonical_source",
+		"canonical_composite",
+		"canonical_markdown",
 	],
 	filters: computed(() => ({ source_document: props.sourceDocument || "__none__" })),
 	orderBy: "page_no asc",
 	limit: 1000,
 	auto: true,
 });
+
+// Let the parent (ImportDetail) refetch after a remediation run completes.
+defineExpose({ reload: () => pages.reload() });
 
 // Default to the Flagged view — the operator's job is triaging non-pass pages.
 const filter = ref("flagged");
@@ -47,7 +58,7 @@ const visiblePages = computed(() => {
 
 const selectedName = ref(null);
 const selected = computed(
-	() => (pages.data || []).find((p) => p.name === selectedName.value) || null
+	() => (pages.data || []).find((p) => p.name === selectedName.value) || null,
 );
 
 // Keep a valid selection as the list / filter changes.
@@ -60,7 +71,7 @@ watch(
 			selectedName.value = list[0].name;
 		}
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 const flaggedCount = computed(() => (pages.data || []).filter((p) => p.verdict !== "pass").length);
@@ -74,6 +85,35 @@ const activeTab = ref("markdown");
 
 const verdictTheme = { pass: "green", escalate: "orange", review: "red" };
 
+// Markdown sub-view: Baseline vs Remediation vs Canonical. Remediation/Canonical
+// options only appear once a remediation pass has produced them for the page.
+const mdView = ref("baseline");
+const mdViews = computed(() => {
+	const p = selected.value;
+	const views = [{ label: "Baseline", key: "baseline" }];
+	if (p?.remediation_method) views.push({ label: "Remediation", key: "remediation" });
+	if (p?.canonical_source) views.push({ label: "Canonical", key: "canonical" });
+	return views;
+});
+// Keep the chosen view valid as the selection changes; prefer canonical when present.
+watch(
+	selected,
+	(p) => {
+		const keys = mdViews.value.map((v) => v.key);
+		if (!keys.includes(mdView.value)) {
+			mdView.value = p?.canonical_source ? "canonical" : "baseline";
+		}
+	},
+	{ immediate: true },
+);
+const mdContent = computed(() => {
+	const p = selected.value;
+	if (!p) return "";
+	if (mdView.value === "remediation") return p.remediation_markdown || "";
+	if (mdView.value === "canonical") return p.canonical_markdown || "";
+	return p.baseline_markdown || "";
+});
+
 // 0.0 reads as "n/a" for table/judge (no table on the page / not judged). A genuine
 // table miss still surfaces via the harness notes, so hiding the bare 0 is honest.
 function fmt(v) {
@@ -86,7 +126,7 @@ function fmtOptional(v) {
 const pdfSrc = computed(() =>
 	selected.value && props.pdfUrl
 		? `${props.pdfUrl}#page=${selected.value.page_no}&view=FitH`
-		: null
+		: null,
 );
 
 // Scores strip: text pages show the full deterministic set; visual pages drop
@@ -109,6 +149,27 @@ const scoreCells = computed(() => {
 		{ label: "Composite", value: fmt(p.composite), strong: true },
 	];
 });
+
+// Before↔after summary once a page has been remediated: which method ran, whether
+// it was adopted as canonical, and the baseline→remediation composite delta.
+const remediation = computed(() => {
+	const p = selected.value;
+	if (!p?.remediation_method) return null;
+	const delta = Number(p.remediation_composite || 0) - Number(p.composite || 0);
+	return {
+		method: p.remediation_method,
+		adopted: !!p.remediation_adopted,
+		base: p.composite,
+		after: p.remediation_composite,
+		delta,
+		canonical: p.canonical_composite,
+		notes: p.remediation_notes,
+	};
+});
+function fmtDelta(v) {
+	const n = Number(v || 0);
+	return `${n >= 0 ? "+" : ""}${n.toFixed(3)}`;
+}
 </script>
 
 <template>
@@ -172,6 +233,13 @@ const scoreCells = computed(() => {
 								<span class="text-xs text-ink-gray-5">{{
 									fmt(page.composite)
 								}}</span>
+								<Badge
+									v-if="page.remediation_adopted"
+									label="remediated"
+									theme="blue"
+									variant="subtle"
+									size="sm"
+								/>
 							</div>
 						</div>
 					</button>
@@ -228,6 +296,43 @@ const scoreCells = computed(() => {
 						<p v-if="selected.notes" class="mt-1.5 text-xs text-ink-amber-6">
 							{{ selected.notes }}
 						</p>
+
+						<!-- Remediation before↔after -->
+						<div
+							v-if="remediation"
+							class="mt-2 flex flex-wrap items-center gap-2 border-t border-outline-gray-1 pt-2"
+						>
+							<Badge
+								:label="remediation.method"
+								theme="blue"
+								variant="subtle"
+								size="sm"
+							/>
+							<Badge
+								:label="remediation.adopted ? 'adopted' : 'kept baseline'"
+								:theme="remediation.adopted ? 'green' : 'gray'"
+								variant="subtle"
+								size="sm"
+							/>
+							<span class="text-xs text-ink-gray-6">
+								{{ fmt(remediation.base) }} → {{ fmt(remediation.after) }}
+								<span
+									class="ml-1 tabular-nums"
+									:class="
+										remediation.delta >= 0
+											? 'text-ink-green-6'
+											: 'text-ink-red-6'
+									"
+									>({{ fmtDelta(remediation.delta) }})</span
+								>
+							</span>
+							<span class="text-xs text-ink-gray-5">
+								canonical {{ fmt(remediation.canonical) }}
+							</span>
+						</div>
+						<p v-if="remediation?.notes" class="mt-1 text-xs text-ink-gray-5">
+							{{ remediation.notes }}
+						</p>
 					</div>
 
 					<!-- Tabs (PDF / Snapshot / Markdown) -->
@@ -274,14 +379,24 @@ const scoreCells = computed(() => {
 							<p v-else class="text-sm text-ink-gray-5">No snapshot rendered.</p>
 						</div>
 
-						<!-- Markdown -->
-						<div v-else-if="activeTab === 'markdown'" class="h-full p-3">
+						<!-- Markdown (Baseline / Remediation / Canonical) -->
+						<div v-else-if="activeTab === 'markdown'" class="flex h-full flex-col p-3">
+							<div v-if="mdViews.length > 1" class="mb-2 flex items-center gap-1">
+								<Button
+									v-for="v in mdViews"
+									:key="v.key"
+									:label="v.label"
+									size="sm"
+									:variant="mdView === v.key ? 'subtle' : 'ghost'"
+									@click="mdView = v.key"
+								/>
+							</div>
 							<CodeEditor
-								:model-value="selected.baseline_markdown || ''"
+								:model-value="mdContent"
 								language="markdown"
 								variant="outline"
 								:disabled="true"
-								class="h-full"
+								class="min-h-0 flex-1"
 							/>
 						</div>
 					</div>

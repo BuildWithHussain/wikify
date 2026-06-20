@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from "vue";
-import { Badge, Button, Progress, Tabs, useDoc, useList } from "frappe-ui";
+import { Badge, Button, Dropdown, Progress, Tabs, useCall, useDoc, useList } from "frappe-ui";
 import { useSocket } from "@/socket";
 import { statusTheme, isActive } from "@/utils/status";
 import PageReview from "@/components/PageReview.vue";
@@ -28,16 +28,32 @@ const logs = useList({
 });
 
 const status = computed(() => imp.doc?.status);
+const canRemediate = computed(() => status.value === "Review" && !!imp.doc?.source_document);
+
+const pageReview = ref(null);
+
+// Remediation — route flagged (or all) pages through cleanup/VLM, adopt the best.
+const remediate = useCall({
+	url: "/api/v2/method/wikify.api.imports.trigger_remediation",
+	method: "POST",
+	immediate: false,
+});
+function runRemediation(scope) {
+	remediate.submit({ import_name: props.name, scope });
+}
 
 // Realtime
 const socket = useSocket();
 function onProgress(payload) {
 	if (payload.import !== props.name || !imp.doc) return;
+	const wasRemediating = imp.doc.status === "Remediating";
 	imp.doc.stage_progress = payload.percent;
 	if (payload.status) imp.doc.status = payload.status;
 	// Terminal transitions carry fields set server-side (source_document, error).
 	if (payload.status === "Review" || payload.status === "Failed") {
 		imp.reload();
+		// A finished remediation rewrote canonical scores — refetch the page list.
+		if (wasRemediating && payload.status === "Review") pageReview.value?.reload();
 	}
 }
 function onLog(payload) {
@@ -81,6 +97,23 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 			<span v-if="isActive(status)" class="text-sm text-ink-gray-5">{{
 				imp.doc?.stage_label
 			}}</span>
+
+			<Dropdown
+				v-if="canRemediate"
+				class="ml-auto"
+				:options="[
+					{ label: 'Remediate flagged', onClick: () => runRemediation('flagged') },
+					{ label: 'Remediate all pages', onClick: () => runRemediation('all') },
+				]"
+			>
+				<Button
+					variant="solid"
+					theme="gray"
+					label="Remediate"
+					icon-right="lucide-chevron-down"
+					:loading="remediate.loading"
+				/>
+			</Dropdown>
 		</header>
 
 		<Tabs v-model="activeTab" :tabs="tabs">
@@ -146,6 +179,7 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 				<!-- Pages -->
 				<div v-else-if="tab.key === 'pages'" class="h-[calc(100vh-7rem)]">
 					<PageReview
+						ref="pageReview"
 						:source-document="imp.doc?.source_document"
 						:pdf-url="imp.doc?.pdf"
 					/>

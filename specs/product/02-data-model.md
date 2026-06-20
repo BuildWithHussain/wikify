@@ -3,13 +3,16 @@
 Maps the POC SQLite schema (`scratch/pdf_lab/loader/graph.py`) onto Frappe DocTypes.
 Field types are Frappe fieldtypes. `reqd` = required; `ro` = read-only (system-set).
 
-> **As built (through Slice 2):** `Wikify Import`, `Source Document`, `Source Page`,
+> **As built (through Slice 3):** `Wikify Import`, `Source Document`, `Source Page`,
 > `Import Log Entry`, and `Wikify Settings` (Single) exist with only the fields their
 > slice exercises. Slice 2 added baseline score fields + `verdict` + `notes` on
-> `Source Page` and `mean_score` on `Source Document`; remediation/canonical fields
-> land in Slice 3. `Source Section` / `Section Type` are not created yet (Slices 4 / 6).
-> `Source Page` is `hash`-named (the spec's `{source_document}::p{page_no}` is noted as
-> optional); `import` / `pdf` are present per the tables below.
+> `Source Page` and `mean_score` on `Source Document`. Slice 3 added `remediation_*`
+> (incl. `remediation_notes`) + `canonical_*` (incl. `canonical_source`) on `Source
+> Page` and a distinct `canonical_mean` on `Source Document` (the baseline `mean_score`
+> is kept separately, so the before↔after delta survives). `Source Section` /
+> `Section Type` are not created yet (Slices 4 / 6). `Source Page` is `hash`-named (the
+> spec's `{source_document}::p{page_no}` is noted as optional); `import` / `pdf` are
+> present per the tables below.
 
 ## Entity-relationship overview
 
@@ -62,7 +65,8 @@ The durable parsed artifact. Cross-PDF Explore and wiki generation read from her
 | `pdf` | Attach / Link → File, ro | Same PDF; needed for re-parse + the PDF.js tab. |
 | `page_count` | Int, ro | |
 | `parser_used` | Data, ro | Baseline parser name (`pymupdf4llm`, …). |
-| `mean_score` | Float, ro | Canonical mean (computed at read time, mirrored here). |
+| `mean_score` | Float, ro | Mean composite over the **baseline** parse of each page (set at parse). |
+| `canonical_mean` | Float, ro | Mean **canonical** (best-per-page) composite; set by the remediate job. Rises as flagged pages are improved. |
 | `status` | Select, ro | `Parsed / Graphed / Wiki-Generated`. |
 | `wiki_space` | Link → Wiki Space, ro | Set on generation. |
 | `wiki_root_group` | Link → Wiki Document, ro | The group under which this doc's pages were generated. |
@@ -90,12 +94,14 @@ fields directly.
 | `verdict` | Select, ro | `pass / escalate / review`. |
 | `notes` | Small Text, ro | `"; "`-joined harness notes. |
 | **Remediation** | | (POC `escalations`) |
-| `remediation_method` | Select, ro | `none / cleanup / vlm`. |
-| `remediation_markdown` | Code (Markdown), ro | Candidate output (cleanup or vlm). |
+| `remediation_method` | Select, ro | `'' / cleanup / vlm` (blank until a pass runs; the route taken). |
+| `remediation_markdown` | Code (Markdown), ro | Candidate output (cleanup or vlm); `""` if the page's model call failed. |
 | `remediation_composite` | Float, ro | Re-scored candidate composite. |
 | `remediation_adopted` | Check, ro | Whether the candidate became canonical. |
+| `remediation_notes` | Small Text, ro | Candidate harness notes, or a `"<method> failed: …"` line on a per-page model error (the page keeps its baseline). |
 | **Canonical / edits** | | |
-| `canonical_markdown` | Code (Markdown), ro | Adopted of {baseline, remediation} — what sectionizing reads. |
+| `canonical_markdown` | Code (Markdown), ro | Adopted of {baseline, remediation}, then cross-page-table-stitched — what sectionizing reads. Set for **every** page (baseline where nothing was adopted). |
+| `canonical_source` | Select, ro | `'' / baseline / cleanup / vlm` — provenance of the canonical markdown. |
 | `canonical_composite` | Float, ro | Best-of score (POC `canonical_mean` logic, mirrored). |
 | `edited_markdown` | Code (Markdown) | Phase 6: user inline edit; when set, overrides canonical. |
 | `is_edited` | Check | Phase 6. |

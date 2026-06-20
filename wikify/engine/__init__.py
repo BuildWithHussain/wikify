@@ -17,7 +17,10 @@ import fitz  # PyMuPDF
 
 from wikify.engine import llm, pdf_utils, settings, store
 from wikify.engine.parsers import pymupdf as baseline
+from wikify.engine.remediate import remediate_pdf
 from wikify.engine.verify import score_page
+
+__all__ = ["parse_pdf", "remediate_pdf"]
 
 
 def parse_pdf(

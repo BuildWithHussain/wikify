@@ -27,15 +27,15 @@ that skeleton rather than adding a new disconnected layer.
 | 1a | Scaffold + empty SPA shell behind auth | HITL | — | 0 | ✅ Done |
 | 1b | Walking skeleton: upload → parse → see markdown | HITL | 1a | 0 + 1 | ✅ Done |
 | 2 | Page scoring + review split-pane | HITL | 1b | 2 | ✅ Done |
-| 3 | Remediation (cleanup / VLM) + canonical | AFK | 2 | 2 | — |
+| 3 | Remediation (cleanup / VLM) + canonical | AFK | 2 | 2 | ✅ Done |
 | 4 | Sectionize → Source Section tree (read-only) | AFK | 1b | 1 + 3 | — |
 | 5 | Tree drag-review + graph approval | HITL | 4 | 3 | — |
 | 6 | Classification + Explore (cross-document) | HITL | 4 | 4 | — |
 | 7 | Wiki generation (tree → Wiki Documents) | AFK | 5, 6 | 5 | — |
 | 8 | Inline editing (later) | AFK | 2 | 6 | — |
 
-> **Progress** (on `main`): **1a** ✅ `c127f8b` · **1b** ✅ `bfec780` · **2** ✅. All
-> verified on `pdf.localhost` per each slice's Verify steps. Up next: **Slice 3**.
+> **Progress** (on `main`): **1a** ✅ `c127f8b` · **1b** ✅ `bfec780` · **2** ✅ · **3** ✅.
+> All verified on `pdf.localhost` per each slice's Verify steps. Up next: **Slice 4**.
 
 Dependency spine is mostly linear (it is a pipeline). Parallelism: **6** can proceed
 off **4** alongside **5**; **8** floats off **2**.
@@ -230,6 +230,7 @@ verdicts shift on re-parse (no code change).
 
 **Type:** AFK.
 **Blocked by:** 2.
+**Status:** ✅ Done — `main`.
 
 ### What to build
 - **Engine:** port `engine/loader/{cleanup,cleanup_llm,table_stitch}` + the VLM path.
@@ -242,14 +243,50 @@ verdicts shift on re-parse (no code change).
   + adopted flag); "Remediate flagged" / "Remediate all" actions with progress.
 
 ### Acceptance criteria
-- [ ] Flagged pages improve or drop after remediation; before↔after + adopted flag visible.
-- [ ] Mermaid-bearing VLM output is preserved through canonical selection.
-- [ ] `status` cycles `Remediating ⇄ Review`; canonical mean updates.
+- [x] Flagged pages improve or drop after remediation; before↔after + adopted flag visible.
+- [x] Mermaid-bearing VLM output is preserved through canonical selection.
+- [x] `status` cycles `Remediating ⇄ Review`; canonical mean updates.
 
 **Verify:** on a parsed doc with flagged pages, "Remediate flagged"; in `console`
 assert `remediation_*`/`canonical_*` written and `remediation_adopted` set per the rule.
 UI — before↔after + adopted flag visible; a visual page's mermaid survives into
-canonical; flagged count drops; `Source Document.mean_score` rises.
+canonical; flagged count drops; `Source Document.canonical_mean` rises.
+
+### As-built notes (reconciled)
+- **Engine:** `engine/loader/{cleanup,cleanup_llm,table_stitch}` + `engine/parsers/vlm.py`
+  ported (LLM calls go through `engine.llm` → dict-shaped REST response; model ids from
+  `Wikify Settings`). `engine/remediate.py:remediate_pdf()` is the headless entrypoint.
+- **Routing + adoption are the POC's:** a page goes to **vlm** when it's `visual` or its
+  baseline `text_recall < 0.85` (needs the image), else **cleanup** (cheap text model).
+  Cleanup is adopted when recall holds within `cleanup_recall_tolerance` (a small drop =
+  intended furniture removal); vlm is adopted when its composite beats baseline.
+- **Sequential, not threaded.** The POC used a `ThreadPoolExecutor`; the Frappe ORM
+  writes aren't thread-safe, so remediation runs serially (fine for a dev-tool pass).
+- **Per-page failures are non-fatal:** a single page's model call failing (rate limit,
+  billing, transient) is logged into `remediation_notes`, the page keeps its baseline,
+  and the pass continues — it does not abort the whole run.
+- **Canonical:** every page gets `canonical_markdown` + `canonical_source`
+  (`baseline`/`cleanup`/`vlm`) + `canonical_composite`, even non-adopted ones (canonical
+  = baseline there). Cross-page tables are stitched over the canonical set before write.
+  `Source Document.canonical_mean` holds the mean canonical composite (baseline
+  `mean_score` is preserved separately, so the before↔after delta survives). Sections
+  are **not** rebuilt here (no `Source Section` until Slice 4) — `loader/cleanup`'s
+  cross-page boilerplate strip is ported but wires in at sectionize (Slice 4).
+- **API/Job:** `wikify.api.imports.trigger_remediation(import_name, scope)` (`flagged` |
+  `all`, only from `Review`) → flips Import to `Remediating` → enqueues
+  `wikify.jobs.remediate.run`, which streams progress + per-page log lines (method,
+  adopted/kept, score delta, cost) and lands back in `Review` (or reverts to `Review` +
+  records `error` on failure).
+- **UI:** `ImportDetail` gains a **Remediate** dropdown (flagged / all pages) shown in
+  `Review`; on completion the realtime `Review` transition refetches the page list.
+  `PageReview` adds a Baseline ↔ Remediation ↔ Canonical markdown toggle, an
+  adopted/kept badge + baseline→remediation composite delta + canonical score, and a
+  "remediated" chip in the left list.
+- **Live VLM caveat:** the cleanup path + routing + adoption + canonical + stitch + mean
+  + status cycle were all verified live on `pdf.localhost` (headless + the real job).
+  The **vlm-adopted + mermaid-preservation** path is covered by the hermetic test
+  (`tests/test_remediate_pipeline.py`, LLM seam patched); a fully-live VLM adoption was
+  blocked by an OpenRouter `402` (account out of credits), not code — top up to demo it.
 
 ### Spec refs
 [03-backend-plan Phase 2](03-backend-plan.md#phase-2--page-review--remediation)

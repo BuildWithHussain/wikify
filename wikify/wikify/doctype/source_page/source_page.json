@@ -20,7 +20,18 @@
   "judge_score",
   "notes",
   "baseline_section",
-  "baseline_markdown"
+  "baseline_markdown",
+  "remediation_section",
+  "remediation_method",
+  "remediation_adopted",
+  "remediation_composite",
+  "column_break_rem",
+  "remediation_notes",
+  "remediation_markdown",
+  "canonical_section",
+  "canonical_source",
+  "canonical_composite",
+  "canonical_markdown"
  ],
  "fields": [
   {
@@ -121,6 +132,76 @@
    "fieldname": "baseline_markdown",
    "fieldtype": "Code",
    "label": "Baseline Markdown",
+   "options": "Markdown"
+  },
+  {
+   "fieldname": "remediation_section",
+   "fieldtype": "Section Break",
+   "label": "Remediation"
+  },
+  {
+   "description": "Which remediation method ran on this page (text cleanup or VLM re-parse).",
+   "fieldname": "remediation_method",
+   "fieldtype": "Select",
+   "label": "Remediation Method",
+   "options": "\ncleanup\nvlm",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Whether the remediation output was adopted as canonical.",
+   "fieldname": "remediation_adopted",
+   "fieldtype": "Check",
+   "label": "Remediation Adopted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remediation_composite",
+   "fieldtype": "Float",
+   "label": "Remediation Composite",
+   "precision": "3",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_rem",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "remediation_notes",
+   "fieldtype": "Small Text",
+   "label": "Remediation Notes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remediation_markdown",
+   "fieldtype": "Code",
+   "label": "Remediation Markdown",
+   "options": "Markdown"
+  },
+  {
+   "fieldname": "canonical_section",
+   "fieldtype": "Section Break",
+   "label": "Canonical"
+  },
+  {
+   "description": "Provenance of the canonical markdown: baseline, cleanup, or vlm.",
+   "fieldname": "canonical_source",
+   "fieldtype": "Select",
+   "label": "Canonical Source",
+   "options": "\nbaseline\ncleanup\nvlm",
+   "read_only": 1
+  },
+  {
+   "fieldname": "canonical_composite",
+   "fieldtype": "Float",
+   "label": "Canonical Composite",
+   "precision": "3",
+   "read_only": 1
+  },
+  {
+   "fieldname": "canonical_markdown",
+   "fieldtype": "Code",
+   "label": "Canonical Markdown",
    "options": "Markdown"
   }
  ],

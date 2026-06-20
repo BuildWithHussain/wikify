@@ -13,6 +13,7 @@
   "page_count",
   "parser_used",
   "mean_score",
+  "canonical_mean",
   "status"
  ],
  "fields": [
@@ -54,10 +55,18 @@
    "read_only": 1
   },
   {
-   "description": "Mean composite over pages (canonical mean lands in Slice 3).",
+   "description": "Mean composite over the baseline parse of each page.",
    "fieldname": "mean_score",
    "fieldtype": "Float",
    "label": "Mean Score",
+   "precision": "3",
+   "read_only": 1
+  },
+  {
+   "description": "Mean composite over the canonical (post-remediation, best-per-page) markdown. Set by the remediate job.",
+   "fieldname": "canonical_mean",
+   "fieldtype": "Float",
+   "label": "Canonical Mean",
    "precision": "3",
    "read_only": 1
   },

@@ -68,8 +68,9 @@ test site and produce Source Document + Source Page + Source Section rows.
 > **As built:** Slice 1b ships the thin spine — `engine.parse_pdf` produces
 > Source Document + Source Page (render + baseline `pymupdf4llm` parse, no scoring).
 > `store.py`'s 1b surface is `create_document` / `add_page` / `set_page_count`;
-> scoring/canonical (`add_page_score`, `canonical_mean`) land in Slice 2 and the
-> `Source Section` tree in Slice 4. `Wikify Settings` + `engine/llm.py` arrive with
+> scoring (`set_page_scores` / `set_mean_score`) lands in Slice 2, canonical
+> (`get_pages` / `set_remediation` / `set_canonical` / `set_canonical_mean`) in Slice 3,
+> and the `Source Section` tree in Slice 4. `Wikify Settings` + `engine/llm.py` arrive with
 > Slice 2. Deps `pymupdf` + `pymupdf4llm` are in `pyproject.toml` (the latter now
 > also pulls a layout/OCR model — heavier than the POC, same `to_markdown` API).
 
@@ -120,24 +121,39 @@ Acceptance: from the list, New Import → progress bar animates, logs stream, la
 
 ## Phase 2 — Page Review + Remediation
 
-**API** `wikify/api/review.py`:
-- `trigger_remediation(import_name, scope="all"|"flagged")` — enqueue
-  `wikify.jobs.remediate.run`.
-- `save_page_edit(source_page, markdown)` — Phase 6 (writes `edited_markdown`,
-  `is_edited`); stub now.
+> **As built (Slice 3).** Done as below, with these reconciliations:
+> - `trigger_remediation` lives in **`wikify/api/imports.py`** (not a separate
+>   `review.py`); its `scope` defaults to **`"flagged"`** and it only runs from `Review`.
+>   `save_page_edit` is Slice 8 — not stubbed yet.
+> - The remediation logic is **`engine/remediate.py:remediate_pdf()`** (the ORM seam),
+>   thinly wrapped by `jobs/remediate.py` for status/progress/logging.
+> - **No Source Section rebuild** here — `Source Section` doesn't exist until Slice 4,
+>   so the job stitches tables + writes per-page `canonical_*` only; the tree is built
+>   over canonical markdown in Slice 4. The `adopted`-flag gotcha applies there.
+> - **Sequential, not `ThreadPoolExecutor`** — the Frappe ORM writes aren't thread-safe.
+> - **Per-page model failures are non-fatal**: logged to `remediation_notes`, the page
+>   keeps its baseline, the pass continues (the POC's `map` would abort the run).
+> - `canonical_mean` is a distinct `Source Document` field (baseline `mean_score` kept).
 
-**Job** `wikify/jobs/remediate.py` — ports POC `pipeline.remediate_document`:
+**API** `wikify/api/imports.py`:
+- `trigger_remediation(import_name, scope="flagged"|"all")` — guard (`Review` only) →
+  flip Import to `Remediating` → enqueue `wikify.jobs.remediate.run`.
+- `save_page_edit(source_page, markdown)` — Slice 8 (writes `edited_markdown`,
+  `is_edited`); not present yet.
+
+**Job** `wikify/jobs/remediate.py` → `engine/remediate.py` — ports POC
+`pipeline.remediate_document`:
 - Router per page: `kind==visual` or `text_recall<0.85` → **vlm** (image); else
   **cleanup** (text model). Re-score baseline + candidate with the same judge.
   Adoption: cleanup if `recall >= base.recall - cleanup_recall_tolerance`; vlm if
   `composite > base.composite`. Write `remediation_*`, `remediation_adopted`,
-  recompute `canonical_*`.
+  `remediation_notes`; recompute `canonical_*` (`canonical_source` = provenance).
 - After remediation: stitch cross-page tables (`engine/loader/table_stitch`) over
-  canonical markdown, then **rebuild the Source Section tree** (same as POC; respect
-  the `adopted` flag — POC gotcha: rebuilding from un-adopted escalations reverts
-  visual pages to empty baseline).
-- `ThreadPoolExecutor(remediation_workers)`; sequential DB writes after the map.
-- `status` cycles `Remediating → Review`.
+  canonical markdown, then write per-page `canonical_markdown`/`canonical_composite`
+  and the doc's `canonical_mean`. (Source Section rebuild is Slice 4.)
+- Sequential (Frappe ORM not thread-safe); per-page model failures are non-fatal.
+- `status` cycles `Remediating → Review` (reverts to `Review` + records `error` on
+  failure).
 
 Acceptance: flagged pages drop after remediation; before↔after + adopted flag visible
 per page; mermaid-bearing VLM output preserved.

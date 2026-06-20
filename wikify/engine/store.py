@@ -85,3 +85,52 @@ def set_page_scores(page_name: str, score) -> None:
 
 def set_mean_score(source_document: str, mean: float | None) -> None:
 	frappe.db.set_value("Source Document", source_document, "mean_score", mean)
+
+
+# --- Slice 3: remediation + canonical selection ---
+
+
+def get_pages(source_document: str) -> list[dict]:
+	"""Pages of a doc (ordered) with the fields remediation needs to route + re-score."""
+	return frappe.get_all(
+		"Source Page",
+		filters={"source_document": source_document},
+		fields=["name", "page_no", "kind", "baseline_markdown", "verdict", "composite"],
+		order_by="page_no asc",
+	)
+
+
+def set_remediation(
+	page_name: str,
+	method: str,
+	markdown: str,
+	score,
+	adopted: bool,
+	notes: str | None = None,
+) -> None:
+	"""Record a page's remediation attempt + its score + whether it was adopted."""
+	frappe.db.set_value(
+		"Source Page",
+		page_name,
+		{
+			"remediation_method": method,
+			"remediation_markdown": markdown,
+			"remediation_composite": score.composite,
+			"remediation_adopted": 1 if adopted else 0,
+			"remediation_notes": notes,
+		},
+	)
+
+
+def set_canonical(
+	page_name: str, markdown: str, composite: float | None, source: str
+) -> None:
+	"""Write a page's canonical (best-per-page) markdown + its composite + provenance."""
+	values = {"canonical_markdown": markdown, "canonical_source": source}
+	if composite is not None:
+		values["canonical_composite"] = composite
+	frappe.db.set_value("Source Page", page_name, values)
+
+
+def set_canonical_mean(source_document: str, mean: float | None) -> None:
+	frappe.db.set_value("Source Document", source_document, "canonical_mean", mean)
