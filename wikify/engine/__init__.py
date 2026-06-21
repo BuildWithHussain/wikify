@@ -20,7 +20,7 @@ from wikify.engine.classify import classify_document
 from wikify.engine.generate import generate_wiki, preview_wiki
 from wikify.engine.parsers import pymupdf as baseline
 from wikify.engine.remediate import remediate_pdf
-from wikify.engine.sectionize import sectionize_document
+from wikify.engine.sectionize import rebuild_and_classify, sectionize_document
 from wikify.engine.verify import score_page
 
 __all__ = [
@@ -99,17 +99,5 @@ def parse_pdf(
 
 	# Build the section tree over the (baseline == canonical at parse time) markdown,
 	# then tag each section with a Section Type (eager classify; no key → all "other").
-	# These run after the page loop, so stage_cb keeps the UI from looking pinned at the
-	# last page (classify is one LLM call per section — minutes on a big manual).
-	if stage_cb:
-		stage_cb("Building section tree")
-	sectionize_document(sd, pdf_path)
-	if stage_cb:
-		stage_cb("Classifying sections")
-	classify_document(
-		sd,
-		progress_cb=(lambda d, t, title, st: stage_cb(f"Classifying sections ({d}/{t})"))
-		if stage_cb
-		else None,
-	)
+	rebuild_and_classify(sd, pdf_path, stage_cb)
 	return sd

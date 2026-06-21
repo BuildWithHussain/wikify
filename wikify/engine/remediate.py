@@ -23,11 +23,10 @@ from collections.abc import Callable
 import fitz  # PyMuPDF
 
 from wikify.engine import llm, pdf_utils, settings, store
-from wikify.engine.classify import classify_document
 from wikify.engine.loader.cleanup_llm import clean_markdown
 from wikify.engine.loader.table_stitch import stitch_cross_page_tables
 from wikify.engine.parsers import vlm
-from wikify.engine.sectionize import sectionize_document
+from wikify.engine.sectionize import rebuild_and_classify
 from wikify.engine.verify import deterministic as det
 from wikify.engine.verify import score_page
 
@@ -111,8 +110,13 @@ def remediate_pdf(
 
 			if page_cb:
 				page_cb(
-					p["page_no"], total, method, adopted,
-					base_ps.composite, new_composite, llm.get_metrics(),
+					p["page_no"],
+					total,
+					method,
+					adopted,
+					base_ps.composite,
+					new_composite,
+					llm.get_metrics(),
 				)
 			if progress_cb:
 				progress_cb(i + 1, total)
@@ -127,19 +131,8 @@ def remediate_pdf(
 	canonical_mean = round(sum(comps) / len(comps), 3) if comps else None
 	store.set_canonical_mean(source_document, canonical_mean)
 
-	# Rebuild the section tree over the now-canonical (adopted) markdown, then re-tag
-	# each section (the rebuild assigns fresh section names, so types must be re-derived).
-	if stage_cb:
-		stage_cb("Building section tree")
-	n_sections = sectionize_document(source_document, pdf_path)
-	if stage_cb:
-		stage_cb("Classifying sections")
-	classify_document(
-		source_document,
-		progress_cb=(lambda d, t, title, st: stage_cb(f"Classifying sections ({d}/{t})"))
-		if stage_cb
-		else None,
-	)
+	# Rebuild the section tree over the now-canonical (adopted) markdown, then re-tag.
+	n_sections = rebuild_and_classify(source_document, pdf_path, stage_cb)
 
 	adopted_count = sum(1 for src in canon_src.values() if src != "baseline")
 	return {

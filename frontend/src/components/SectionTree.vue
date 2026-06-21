@@ -92,31 +92,18 @@ async function mutate(call, params) {
 	}
 }
 
-const reorder = useCall({
-	url: "/api/v2/method/wikify.api.sections.reorder_section",
-	method: "POST",
-	immediate: false,
-});
-const rename = useCall({
-	url: "/api/v2/method/wikify.api.sections.rename_section",
-	method: "POST",
-	immediate: false,
-});
-const toggle = useCall({
-	url: "/api/v2/method/wikify.api.sections.toggle_include",
-	method: "POST",
-	immediate: false,
-});
-const remove = useCall({
-	url: "/api/v2/method/wikify.api.sections.delete_section",
-	method: "POST",
-	immediate: false,
-});
-const graph = useCall({
-	url: "/api/v2/method/wikify.api.sections.build_graph",
-	method: "POST",
-	immediate: false,
-});
+function sectionCall(method) {
+	return useCall({
+		url: `/api/v2/method/wikify.api.sections.${method}`,
+		method: "POST",
+		immediate: false,
+	});
+}
+const reorder = sectionCall("reorder_section");
+const rename = sectionCall("rename_section");
+const toggle = sectionCall("toggle_include");
+const remove = sectionCall("delete_section");
+const graph = sectionCall("build_graph");
 
 function onMove({ name, newParent, siblings }) {
 	mutate(reorder, { name, new_parent: newParent, new_index: siblings.indexOf(name), siblings });
@@ -256,8 +243,16 @@ const mdMode = ref("rendered");
 								v-model="mdMode"
 								class="ml-auto"
 								:options="[
-									{ label: 'Preview', value: 'rendered', iconLeft: 'lucide-eye' },
-									{ label: 'Markdown', value: 'source', iconLeft: 'lucide-code' },
+									{
+										label: 'Preview',
+										value: 'rendered',
+										iconLeft: 'lucide-eye',
+									},
+									{
+										label: 'Markdown',
+										value: 'source',
+										iconLeft: 'lucide-code',
+									},
 								]"
 							/>
 						</div>
