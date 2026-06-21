@@ -43,9 +43,7 @@ def _is_varying(line: str) -> bool:
 	return any(p.search(line) for p in _VARYING)
 
 
-def strip_boilerplate(
-	pages: list[tuple[int, str]], boilerplate: set[str]
-) -> list[tuple[int, str]]:
+def strip_boilerplate(pages: list[tuple[int, str]], boilerplate: set[str]) -> list[tuple[int, str]]:
 	out: list[tuple[int, str]] = []
 	for pno, md in pages:
 		kept = [
@@ -59,3 +57,28 @@ def strip_boilerplate(
 
 def clean_pages(pages: list[tuple[int, str]]) -> list[tuple[int, str]]:
 	return strip_boilerplate(pages, find_boilerplate(pages))
+
+
+def strip_outer_markdown_fence(text: str) -> str:
+	"""Unwrap a reply an LLM fenced as one ```markdown … ``` block (with optional
+	commentary around it), returning just the inner markdown.
+
+	Models sometimes ignore "no code fences" and fence the whole page — often adding a
+	trailing "The table is part of…" note — so real tables/headings render as a literal
+	code block. We unwrap only when the first non-blank line opens a markdown/md (or
+	untagged) fence and the block has no nested fence, so a genuine ```mermaid diagram
+	is left untouched.
+	"""
+	lines = text.strip().splitlines()
+	start = next((i for i, line in enumerate(lines) if line.strip()), None)
+	if start is None or not lines[start].startswith("```"):
+		return text
+	if lines[start][3:].strip().lower() not in ("", "markdown", "md"):
+		return text
+	close = next((i for i in range(start + 1, len(lines)) if set(lines[i].strip()) == {"`"}), None)
+	if close is None:
+		return text
+	# A nested fence inside the block (e.g. ```mermaid) means unwrapping could corrupt it.
+	if any(lines[i].lstrip().startswith("```") for i in range(start + 1, close)):
+		return text
+	return "\n".join(lines[start + 1 : close]).strip()

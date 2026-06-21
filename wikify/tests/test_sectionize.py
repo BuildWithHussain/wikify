@@ -9,10 +9,41 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from wikify.engine import parse_pdf, remediate_pdf
-from wikify.engine.loader.cleanup import clean_pages
+from wikify.engine.loader.cleanup import clean_pages, strip_outer_markdown_fence
 from wikify.engine.loader.sectionizer import sectionize
 from wikify.tests.test_parse_pipeline import _make_sample_pdf
 from wikify.tests.test_remediate_pipeline import _MERMAID, _fake_chat
+
+
+class TestStripMarkdownFence(FrappeTestCase):
+	"""LLM parsers sometimes wrap the whole reply in a ```markdown fence."""
+
+	def test_strips_outer_markdown_fence(self):
+		table = "| a | b |\n|---|---|\n| 1 | 2 |"
+		self.assertEqual(strip_outer_markdown_fence(f"```markdown\n{table}\n```"), table)
+
+	def test_drops_commentary_after_the_fence(self):
+		# The real page-10 shape: a fenced page body followed by an LLM aside.
+		table = "| a | b |\n|---|---|\n| 1 | 2 |"
+		wrapped = f"```markdown\n{table}\n```\n\nThe table is part of the manual."
+		self.assertEqual(strip_outer_markdown_fence(wrapped), table)
+
+	def test_strips_untagged_and_md_fences(self):
+		self.assertEqual(strip_outer_markdown_fence("```\n# Title\n```"), "# Title")
+		self.assertEqual(strip_outer_markdown_fence("```md\n# Title\n```"), "# Title")
+
+	def test_leaves_plain_markdown_untouched(self):
+		md = "# Title\n\n| a | b |\n|---|---|"
+		self.assertEqual(strip_outer_markdown_fence(md), md)
+
+	def test_leaves_mermaid_block_untouched(self):
+		# A genuine inner diagram fence (more than one fence) must survive verbatim.
+		page = '```mermaid\nflowchart TD\nA["x"] --> B["y"]\n```'
+		self.assertEqual(strip_outer_markdown_fence(page), page)
+
+	def test_does_not_strip_when_inner_fence_present(self):
+		wrapped = "```markdown\n# Title\n```mermaid\nflowchart TD\n```\n```"
+		self.assertEqual(strip_outer_markdown_fence(wrapped), wrapped)
 
 
 class TestSectionizer(FrappeTestCase):
@@ -92,8 +123,16 @@ class TestSectionizeIntegration(FrappeTestCase):
 			"Source Section",
 			filters={"source_document": sd},
 			fields=[
-				"name", "title", "level", "parent_source_section",
-				"hierarchy_path", "is_group", "lft", "rgt", "page_start", "page_end",
+				"name",
+				"title",
+				"level",
+				"parent_source_section",
+				"hierarchy_path",
+				"is_group",
+				"lft",
+				"rgt",
+				"page_start",
+				"page_end",
 			],
 			order_by="lft asc",
 		)

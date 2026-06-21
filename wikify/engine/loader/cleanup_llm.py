@@ -12,6 +12,7 @@ through `engine.llm` (REST) and the model id comes from `engine.settings`.
 from __future__ import annotations
 
 from wikify.engine import llm, settings
+from wikify.engine.loader.cleanup import strip_outer_markdown_fence
 
 _PROMPT = (
 	"You are cleaning Markdown that a PDF-extraction tool produced. The tool sometimes "
@@ -39,4 +40,4 @@ def clean_markdown(raw_markdown: str, model: str | None = None) -> str:
 		label="cleanup",
 		max_tokens=4096,
 	)
-	return (resp["choices"][0]["message"]["content"] or "").strip()
+	return strip_outer_markdown_fence((resp["choices"][0]["message"]["content"] or "").strip())

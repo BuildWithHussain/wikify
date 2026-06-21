@@ -11,6 +11,7 @@ on-demand re-render, no `image_to_data_url` disk round-trip.
 from __future__ import annotations
 
 from wikify.engine import llm, settings
+from wikify.engine.loader.cleanup import strip_outer_markdown_fence
 
 _PROMPT = (
 	"Convert this PDF page into clean, faithful GitHub-flavored Markdown. "
@@ -44,4 +45,4 @@ def parse_page_image(image_data_url: str, model: str | None = None) -> str:
 		label="vlm_parse",
 		max_tokens=8192,
 	)
-	return (resp["choices"][0]["message"]["content"] or "").strip()
+	return strip_outer_markdown_fence((resp["choices"][0]["message"]["content"] or "").strip())
