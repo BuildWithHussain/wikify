@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Badge, Button, Dropdown, Progress, Tabs, useCall, useDoc, useList } from "frappe-ui";
 import { useSocket } from "@/socket";
 import { statusTheme, isActive } from "@/utils/status";
@@ -9,19 +10,43 @@ import Explore from "@/components/Explore.vue";
 
 const props = defineProps({
 	name: { type: String, required: true },
-	tab: { type: String, default: "overview" },
+	tab: { type: String, default: "pdf" },
 });
+
+const route = useRoute();
+const router = useRouter();
 
 const imp = useDoc({ doctype: "Wikify Import", name: props.name });
 
+// PDF first (the source is the starting point); the metadata + streaming log ("Logs")
+// moves to the end. The `overview` key is kept so its panel/v-ifs don't churn.
 const tabs = [
-	{ label: "Overview", key: "overview" },
+	{ label: "PDF", key: "pdf" },
 	{ label: "Pages", key: "pages" },
 	{ label: "Tree", key: "tree" },
 	{ label: "Explore", key: "explore" },
-	{ label: "PDF", key: "pdf" },
+	{ label: "Logs", key: "overview" },
 ];
-const activeTab = ref({ pages: 1, tree: 2, explore: 3, pdf: 4 }[props.tab] ?? 0);
+const tabKeys = tabs.map((t) => t.key);
+const activeTab = ref(Math.max(0, tabKeys.indexOf(props.tab)));
+
+// Persist the active tab in the route (path param) so a refresh restores it. Use
+// replace so tab-switching doesn't flood browser history; preserve any query (the
+// Pages filter/page sub-state lives there).
+watch(activeTab, (i) => {
+	const key = tabKeys[i] ?? "pdf";
+	if (route.params.tab !== key) {
+		router.replace({ name: "ImportDetail", params: { name: props.name, tab: key }, query: route.query });
+	}
+});
+// Reflect external route changes (back/forward, deep link) back into the tab.
+watch(
+	() => props.tab,
+	(key) => {
+		const i = tabKeys.indexOf(key);
+		if (i >= 0 && i !== activeTab.value) activeTab.value = i;
+	},
+);
 
 // Streaming log
 const logs = useList({
@@ -92,24 +117,25 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 <template>
 	<div class="flex h-full flex-col">
 		<header
-			class="sticky top-0 z-10 flex min-h-12 items-center gap-3 border-b border-outline-gray-1 bg-surface-base px-3 sm:px-5"
+			class="sticky top-0 z-10 flex min-h-12 items-center justify-between gap-3 border-b border-outline-gray-1 bg-surface-base px-3 sm:px-5"
 		>
-			<Button variant="ghost" icon="lucide-arrow-left" :route="{ name: 'Imports' }" />
-			<h1 class="truncate text-lg text-ink-gray-9">{{ imp.doc?.import_title || name }}</h1>
-			<Badge v-if="status" :label="status" :theme="statusTheme(status)" variant="subtle" />
-			<Progress
-				v-if="isActive(status)"
-				:value="imp.doc?.stage_progress || 0"
-				size="sm"
-				class="w-40"
-			/>
-			<span v-if="isActive(status)" class="text-sm text-ink-gray-5">{{
-				imp.doc?.stage_label
-			}}</span>
+			<div class="flex min-w-0 items-center gap-3">
+				<Button variant="ghost" icon="lucide-arrow-left" :route="{ name: 'Imports' }" />
+				<h1 class="truncate text-lg text-ink-gray-9">{{ imp.doc?.import_title || name }}</h1>
+				<Badge v-if="status" :label="status" :theme="statusTheme(status)" variant="subtle" />
+				<Progress
+					v-if="isActive(status)"
+					:value="imp.doc?.stage_progress || 0"
+					size="sm"
+					class="w-40"
+				/>
+				<span v-if="isActive(status)" class="truncate text-sm text-ink-gray-5">{{
+					imp.doc?.stage_label
+				}}</span>
+			</div>
 
 			<Dropdown
 				v-if="canRemediate"
-				class="ml-auto"
 				:options="[
 					{ label: 'Remediate flagged', onClick: () => runRemediation('flagged') },
 					{ label: 'Remediate all pages', onClick: () => runRemediation('all') },

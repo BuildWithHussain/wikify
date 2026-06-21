@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Badge, Button, useList } from "frappe-ui";
 import { CodeEditor } from "frappe-ui/code-editor";
 import { Splitpanes, Pane } from "splitpanes";
@@ -9,6 +10,9 @@ import { marked } from "marked";
 const props = defineProps({
 	sourceDocument: { type: String, default: null },
 });
+
+const route = useRoute();
+const router = useRouter();
 
 const pages = useList({
 	doctype: "Source Page",
@@ -43,8 +47,11 @@ const pages = useList({
 // Let the parent (ImportDetail) refetch after a remediation run completes.
 defineExpose({ reload: () => pages.reload() });
 
-// All by default; Flagged = pages needing review (verdict ≠ pass), Passed = its negation.
-const filter = ref("all");
+// Filter + selected page are mirrored in the route query (?filter=&page=) so a refresh
+// or shared link restores the exact view. All by default; Flagged = pages needing review
+// (verdict ≠ pass), Passed = its negation.
+const FILTERS = ["all", "flagged", "passed"];
+const filter = ref(FILTERS.includes(route.query.filter) ? route.query.filter : "all");
 
 const visiblePages = computed(() => {
 	const all = pages.data || [];
@@ -58,18 +65,41 @@ const selected = computed(
 	() => (pages.data || []).find((p) => p.name === selectedName.value) || null,
 );
 
-// Keep a valid selection as the list / filter changes.
+// First resolution restores the selection from ?page=<page_no>; afterwards just keep a
+// valid selection as the list / filter changes.
+let restored = false;
 watch(
 	visiblePages,
 	(list) => {
 		if (!list.length) {
 			selectedName.value = null;
-		} else if (!list.some((p) => p.name === selectedName.value)) {
+			return;
+		}
+		if (!restored) {
+			restored = true;
+			const want = route.query.page ? Number(route.query.page) : null;
+			const match = want ? list.find((p) => p.page_no === want) : null;
+			selectedName.value = (match || list[0]).name;
+			return;
+		}
+		if (!list.some((p) => p.name === selectedName.value)) {
 			selectedName.value = list[0].name;
 		}
 	},
 	{ immediate: true },
 );
+
+// Persist filter + selected page_no into the query (replace; keep the default tidy).
+watch([filter, selected], () => {
+	const query = { ...route.query };
+	if (filter.value === "all") delete query.filter;
+	else query.filter = filter.value;
+	if (selected.value) query.page = String(selected.value.page_no);
+	else delete query.page;
+	if (query.filter !== route.query.filter || query.page !== route.query.page) {
+		router.replace({ query });
+	}
+});
 
 const totalCount = computed(() => (pages.data || []).length);
 const flaggedCount = computed(() => (pages.data || []).filter((p) => p.verdict !== "pass").length);

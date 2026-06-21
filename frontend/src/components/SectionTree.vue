@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { Badge, Button, Dialog, useCall, useList, toast } from "frappe-ui";
+import { Badge, Button, Dialog, TabButtons, useCall, useList, toast } from "frappe-ui";
 import { CodeEditor } from "frappe-ui/code-editor";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
@@ -252,25 +252,15 @@ const renderedMd = computed(() => marked.parse(selected.value?.markdown || "", {
 								variant="subtle"
 								size="sm"
 							/>
-							<!-- Rendered ↔ source toggle (GitHub-style) -->
-							<div class="ml-auto flex items-center gap-0.5">
-								<Button
-									variant="ghost"
-									size="sm"
-									icon="lucide-eye"
-									:class="mdMode === 'rendered' ? 'bg-surface-gray-3' : ''"
-									tooltip="Rendered"
-									@click="mdMode = 'rendered'"
-								/>
-								<Button
-									variant="ghost"
-									size="sm"
-									icon="lucide-code"
-									:class="mdMode === 'source' ? 'bg-surface-gray-3' : ''"
-									tooltip="Markdown source"
-									@click="mdMode = 'source'"
-								/>
-							</div>
+							<!-- Rendered ↔ source toggle -->
+							<TabButtons
+								v-model="mdMode"
+								class="ml-auto"
+								:options="[
+									{ label: 'Preview', value: 'rendered', iconLeft: 'lucide-eye' },
+									{ label: 'Markdown', value: 'source', iconLeft: 'lucide-code' },
+								]"
+							/>
 						</div>
 						<p class="mt-1 truncate text-xs text-ink-gray-5">
 							{{ selected.hierarchy_path }}
