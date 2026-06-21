@@ -14,7 +14,10 @@
   "parser_used",
   "mean_score",
   "canonical_mean",
-  "status"
+  "status",
+  "wiki_section",
+  "wiki_space",
+  "wiki_root_group"
  ],
  "fields": [
   {
@@ -77,6 +80,27 @@
    "in_list_view": 1,
    "label": "Status",
    "options": "Parsed\nGraphed\nWiki-Generated",
+   "read_only": 1
+  },
+  {
+   "fieldname": "wiki_section",
+   "fieldtype": "Section Break",
+   "label": "Wiki"
+  },
+  {
+   "description": "The Wiki Space this document's tree was generated into (Slice 7).",
+   "fieldname": "wiki_space",
+   "fieldtype": "Link",
+   "label": "Wiki Space",
+   "options": "Wiki Space",
+   "read_only": 1
+  },
+  {
+   "description": "The per-document group (a Wiki Document) under the space that this tree hangs from.",
+   "fieldname": "wiki_root_group",
+   "fieldtype": "Link",
+   "label": "Wiki Root Group",
+   "options": "Wiki Document",
    "read_only": 1
   }
  ],

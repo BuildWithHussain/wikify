@@ -31,12 +31,12 @@ that skeleton rather than adding a new disconnected layer.
 | 4 | Sectionize → Source Section tree (read-only) | AFK | 1b | 1 + 3 | ✅ Done |
 | 5 | Tree drag-review + graph approval | HITL | 4 | 3 | ✅ Done |
 | 6 | Classification + Explore (cross-document) | HITL | 4 | 4 | ✅ Done |
-| 7 | Wiki generation (tree → Wiki Documents) | AFK | 5, 6 | 5 | — |
+| 7 | Wiki generation (tree → Wiki Documents) | AFK | 5, 6 | 5 | ✅ Done |
 | 8 | Inline editing (later) | AFK | 2 | 6 | — |
 
-> **Progress** (on `main`): **1a** ✅ `c127f8b` · **1b** ✅ `bfec780` · **2** ✅ · **3** ✅ · **4** ✅ · **5** ✅ · **6** ✅.
-> All verified on `pdf.localhost` per each slice's Verify steps. Up next: **Slice 7** (Wiki
-> generation — needs 5 + 6, both landed).
+> **Progress** (on `main`): **1a** ✅ `c127f8b` · **1b** ✅ `bfec780` · **2** ✅ · **3** ✅ · **4** ✅ · **5** ✅ · **6** ✅ · **7** ✅.
+> All verified on `pdf.localhost` per each slice's Verify steps. Up next: **Slice 8** (inline
+> editing — optional, floats off Slice 2).
 
 Dependency spine is mostly linear (it is a pipeline). Parallelism: **6** can proceed
 off **4** alongside **5**; **8** floats off **2**.
@@ -541,6 +541,7 @@ graph both, then on `/wikify/explore` pick a type and confirm matching sections 
 
 **Type:** AFK (well-specified mapping; payoff demo).
 **Blocked by:** 5, 6.
+**Status:** ✅ Done — `main`.
 
 ### What to build
 - **Engine:** port `engine/loader/wiki` (`_PAGEREF_RE` + `slug_for_page`).
@@ -557,9 +558,9 @@ graph both, then on `/wikify/explore` pick a type and confirm matching sections 
   per-section "view page" links; idempotent **Regenerate**.
 
 ### Acceptance criteria
-- [ ] Approved tree appears as a matching Wiki Space sidebar tree; pages render markdown (mermaid included).
-- [ ] Internal "page N" references are clickable wiki links; external citations remain plain text.
-- [ ] Regeneration after a tree edit updates in place (no duplicates; removed sections deleted).
+- [x] Approved tree appears as a matching Wiki Space sidebar tree; pages render markdown (mermaid included).
+- [x] Internal "page N" references are clickable wiki links; external citations remain plain text.
+- [x] Regeneration after a tree edit updates in place (no duplicates; removed sections deleted).
 
 **Verify:** pick/create a Wiki Space, Preview, Generate. In `console` assert
 `Wiki Document` rows mirror the tree (`parent_wiki_document`, `is_group`, `sort_order`)
@@ -567,6 +568,57 @@ and `Source Section.wiki_document` back-links are set. Browse the Wiki Space sid
 markdown + mermaid render; click an internal "page N" link and land on the right page;
 external citations stay plain text. Edit the tree, **Regenerate**, and confirm pages
 update in place (no duplicate routes; excluded sections removed).
+
+### As-built notes (reconciled)
+- **Engine:** `engine/loader/wiki.py` ports the POC's *pure* pieces — `slugify` +
+  `_PAGEREF_RE` + `rewrite_page_refs(md, page_count, route_for_page, current_route)`
+  (the resolver is injected, so the regex stays POC-verbatim and unit-testable without
+  Frappe). `engine/generate.py:generate_wiki()` is the headless entrypoint and does the
+  two passes; `preview_wiki()` projects the included-section tree without writes.
+- **Structure-preserving 1:1 mirror** (not the POC's L1 collapse): each included
+  `Source Section` → a `Wiki Document` (group → sidebar folder, leaf → page), parented to
+  its nearest *included* ancestor's page or the per-document root group, `sort_order` by
+  tree order. Routes/slugs are computed + set **explicitly** (the wiki controller only
+  auto-derives them when empty) so renames/reparents recompute deterministically; slugs
+  are deduped per parent → globally-unique leaf routes (paths diverge at the parent).
+- **Per-document root group** named after the Source Document, a child of the space's
+  `root_group`, stored on `Source Document.wiki_root_group`. Namespaces routes
+  (`<space>/<doc>/…`) so one space holds many imports tidily.
+- **Idempotent regeneration:** each `Source Section.wiki_document` is the upsert key.
+  Stale pages are swept **before** pass 1 (so renamed/recreated routes don't collide with
+  leftovers): keep the root group + every page an *included* section still links to, delete
+  the rest under the root group deepest-first; excluded sections' back-links are cleared.
+  Then pass 1 updates existing / creates new. No blind duplicates; the wiki app's
+  `on_update` revision snapshot rides along for free.
+- **Pass 2 (links):** after every page exists, `route_for_page(n)` = the smallest-span
+  included section whose `page_start..page_end` contains `n` → its route; refs with a
+  see/refer cue or the "Page No." form (and `N <= page_count`) become `[text](/route)`,
+  self-links and external citations ("Williams p820") left as text.
+- **Fields:** `Source Document` gains `wiki_space` + `wiki_root_group`; `Wikify Import`
+  gains `wiki_space`. `Source Section.wiki_document` (added Slice 4) is now populated.
+  Statuses already existed (`Source Document` → `Wiki-Generated`, `Wikify Import` →
+  `Generating Wiki`/`Completed`).
+- **API/Job:** `api.imports.preview_wiki(import_name)` + `generate_wiki(import_name,
+  wiki_space=… | new_space={space_name, route})` (only from `Graphed`/`Completed`) →
+  `jobs/generate.run` — flips to `Generating Wiki`, streams page progress + a final link,
+  lands in `Completed` (reverts to `Graphed` + records `error` on failure), emits
+  `wikify_wiki_done`.
+- **UI:** `ImportDetail` gains a **Wiki** tab (`WikiGenerate.vue`): gated until the tree
+  is approved; left pane = existing-space picker **or** new-space (name + auto-slugged
+  route) + Generate/Regenerate + a "view wiki" link once generated; right pane = a live
+  **Preview** of the projected page/group tree with counts. Realtime `wikify_wiki_done`
+  refreshes; header progress bar covers `Generating Wiki` (added to `isActive`).
+- Tests: `tests/test_generate.py` (8) — structure mirror (parentage/sort_order/routes/
+  published), back-links + space persistence, internal-link rewrite vs external-text, the
+  pure `rewrite_page_refs` helper, idempotent regen (reuse, drop-excluded, rename-route),
+  preview projection. Verified live on `pdf.localhost`: `IMP-2026-00005` (Tree Demo Manual)
+  generated into a new "Tree Demo Wiki" space (4 pages + 1 group, routes nested, all
+  published, markdown renders via the wiki renderer), and an async regenerate streamed
+  `Generating Wiki` → `Completed` idempotently. **Guest 404 caveat:** wiki pages 404 for
+  anonymous users until the space gets a guest-read role — this is the wiki app's standing
+  behavior (the pre-existing `docs` space 404s identically), not a generation bug; browse
+  as an authenticated user. The internal page-ref → wiki-link rewrite is covered by tests
+  (the 3-page demo has no internal cross-refs to exercise it live).
 
 ### Spec refs
 [05-wiki-generation](05-wiki-generation.md) ·

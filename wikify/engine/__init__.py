@@ -17,12 +17,20 @@ import fitz  # PyMuPDF
 
 from wikify.engine import llm, pdf_utils, settings, store
 from wikify.engine.classify import classify_document
+from wikify.engine.generate import generate_wiki, preview_wiki
 from wikify.engine.parsers import pymupdf as baseline
 from wikify.engine.remediate import remediate_pdf
 from wikify.engine.sectionize import sectionize_document
 from wikify.engine.verify import score_page
 
-__all__ = ["classify_document", "parse_pdf", "remediate_pdf", "sectionize_document"]
+__all__ = [
+	"classify_document",
+	"generate_wiki",
+	"parse_pdf",
+	"preview_wiki",
+	"remediate_pdf",
+	"sectionize_document",
+]
 
 
 def parse_pdf(

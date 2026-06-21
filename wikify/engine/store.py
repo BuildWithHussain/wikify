@@ -205,3 +205,44 @@ def replace_sections(source_document: str, sections) -> int:
 		doc.insert(ignore_permissions=True)
 		path_to_name[tuple(sec.hierarchy_path)] = doc.name
 	return len(sections)
+
+
+# --- Slice 7: wiki generation ---
+
+
+def get_sections_for_wiki(source_document: str) -> list[dict]:
+	"""Every Source Section (ordered by tree position) with the fields wiki generation
+	needs. Returns all rows — the caller filters on `include_in_wiki` and resolves
+	parents — so excluded/removed sections can also be cleaned up on regeneration."""
+	return frappe.get_all(
+		"Source Section",
+		filters={"source_document": source_document},
+		fields=[
+			"name",
+			"parent_source_section",
+			"title",
+			"is_group",
+			"markdown",
+			"page_start",
+			"page_end",
+			"sort_order",
+			"include_in_wiki",
+			"wiki_document",
+		],
+		order_by="lft asc",
+	)
+
+
+def set_section_wiki_document(name: str, wiki_document: str | None) -> None:
+	frappe.db.set_value(
+		"Source Section", name, "wiki_document", wiki_document, update_modified=False
+	)
+
+
+def set_document_wiki(
+	source_document: str, wiki_space: str, wiki_root_group: str, status: str | None = None
+) -> None:
+	values = {"wiki_space": wiki_space, "wiki_root_group": wiki_root_group}
+	if status:
+		values["status"] = status
+	frappe.db.set_value("Source Document", source_document, values)

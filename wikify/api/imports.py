@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import frappe
 
+from wikify.engine import preview_wiki as _preview_wiki
+
 
 @frappe.whitelist()
 def start_import(pdf_file_url: str, title: str) -> str:
@@ -70,5 +72,63 @@ def reclassify(import_name: str) -> str:
 		queue="long",
 		timeout=1800,
 		import_name=import_name,
+	)
+	return import_name
+
+
+# --- Slice 7: wiki generation --------------------------------------------------------
+
+
+@frappe.whitelist()
+def preview_wiki(import_name: str) -> dict:
+	"""Projected wiki structure (no writes) — the included-section tree + counts.
+
+	Drives the Wiki tab's preview so the user sees what generation will produce before
+	committing. Available once a document exists; the included subset reflects the tree
+	edits made in review.
+	"""
+	imp = frappe.get_doc("Wikify Import", import_name)
+	if not imp.source_document:
+		frappe.throw("Nothing to preview — parse hasn't produced a document yet.")
+	preview = _preview_wiki(imp.source_document)
+	preview["wiki_space"] = frappe.db.get_value(
+		"Source Document", imp.source_document, "wiki_space"
+	)
+	return preview
+
+
+@frappe.whitelist()
+def generate_wiki(
+	import_name: str,
+	wiki_space: str | None = None,
+	new_space: dict | str | None = None,
+) -> str:
+	"""Enqueue wiki generation under an existing or new Wiki Space.
+
+	Pass either `wiki_space` (existing space name) or `new_space` ({space_name, route}).
+	Only runs once the tree is approved (`Graphed`) or has already been generated
+	(`Completed` → regenerate in place). Flips the Import to `Generating Wiki`.
+	"""
+	imp = frappe.get_doc("Wikify Import", import_name)
+	if not imp.source_document:
+		frappe.throw("Nothing to generate — parse hasn't produced a document yet.")
+	if imp.status not in ("Graphed", "Completed"):
+		frappe.throw(
+			f"Approve the section tree first — can only generate from Graphed or Completed "
+			f"(current status: {imp.status})."
+		)
+	if isinstance(new_space, str):
+		new_space = frappe.parse_json(new_space)
+	if not wiki_space and not new_space:
+		frappe.throw("Choose an existing Wiki Space or provide a new one.")
+
+	imp.db_set("status", "Generating Wiki")
+	frappe.enqueue(
+		"wikify.jobs.generate.run",
+		queue="long",
+		timeout=3600,
+		import_name=import_name,
+		wiki_space=wiki_space,
+		new_space=new_space,
 	)
 	return import_name

@@ -7,6 +7,7 @@ import { statusTheme, isActive } from "@/utils/status";
 import PageReview from "@/components/PageReview.vue";
 import SectionTree from "@/components/SectionTree.vue";
 import Explore from "@/components/Explore.vue";
+import WikiGenerate from "@/components/WikiGenerate.vue";
 
 const props = defineProps({
 	name: { type: String, required: true },
@@ -25,6 +26,7 @@ const tabs = [
 	{ label: "Pages", key: "pages" },
 	{ label: "Tree", key: "tree" },
 	{ label: "Explore", key: "explore" },
+	{ label: "Wiki", key: "wiki" },
 	{ label: "Logs", key: "overview" },
 ];
 const tabKeys = tabs.map((t) => t.key);
@@ -36,7 +38,11 @@ const activeTab = ref(Math.max(0, tabKeys.indexOf(props.tab)));
 watch(activeTab, (i) => {
 	const key = tabKeys[i] ?? "pdf";
 	if (route.params.tab !== key) {
-		router.replace({ name: "ImportDetail", params: { name: props.name, tab: key }, query: route.query });
+		router.replace({
+			name: "ImportDetail",
+			params: { name: props.name, tab: key },
+			query: route.query,
+		});
 	}
 });
 // Reflect external route changes (back/forward, deep link) back into the tab.
@@ -80,8 +86,8 @@ function onProgress(payload) {
 	const wasRemediating = imp.doc.status === "Remediating";
 	imp.doc.stage_progress = payload.percent;
 	if (payload.status) imp.doc.status = payload.status;
-	// Terminal transitions carry fields set server-side (source_document, error).
-	if (payload.status === "Review" || payload.status === "Failed") {
+	// Terminal transitions carry fields set server-side (source_document, wiki_space, error).
+	if (["Review", "Failed", "Completed", "Graphed"].includes(payload.status)) {
 		imp.reload();
 		// A finished remediation rewrote canonical scores + rebuilt the tree — refetch both.
 		if (wasRemediating && payload.status === "Review") {
@@ -121,8 +127,15 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 		>
 			<div class="flex min-w-0 items-center gap-3">
 				<Button variant="ghost" icon="lucide-arrow-left" :route="{ name: 'Imports' }" />
-				<h1 class="truncate text-lg text-ink-gray-9">{{ imp.doc?.import_title || name }}</h1>
-				<Badge v-if="status" :label="status" :theme="statusTheme(status)" variant="subtle" />
+				<h1 class="truncate text-lg text-ink-gray-9">
+					{{ imp.doc?.import_title || name }}
+				</h1>
+				<Badge
+					v-if="status"
+					:label="status"
+					:theme="statusTheme(status)"
+					variant="subtle"
+				/>
 				<Progress
 					v-if="isActive(status)"
 					:value="imp.doc?.stage_progress || 0"
@@ -230,9 +243,17 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 
 				<!-- Explore -->
 				<div v-else-if="tab.key === 'explore'" class="h-[calc(100vh-7rem)]">
-					<Explore
+					<Explore :source-document="imp.doc?.source_document" :import-name="name" />
+				</div>
+
+				<!-- Wiki -->
+				<div v-else-if="tab.key === 'wiki'" class="h-[calc(100vh-7rem)]">
+					<WikiGenerate
 						:source-document="imp.doc?.source_document"
 						:import-name="name"
+						:status="status"
+						:wiki-space="imp.doc?.wiki_space"
+						@generated="imp.reload()"
 					/>
 				</div>
 
@@ -246,7 +267,9 @@ const levelColor = { info: "text-ink-gray-7", warn: "text-ink-amber-6", error: "
 					>
 						<p class="p-4 text-sm text-ink-gray-5">
 							Can't embed the PDF here —
-							<a :href="imp.doc.pdf" target="_blank" class="underline">open it in a new tab</a>.
+							<a :href="imp.doc.pdf" target="_blank" class="underline"
+								>open it in a new tab</a
+							>.
 						</p>
 					</object>
 					<p v-else class="p-4 text-sm text-ink-gray-5">No PDF attached.</p>

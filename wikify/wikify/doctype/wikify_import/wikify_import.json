@@ -15,6 +15,7 @@
   "page_count",
   "artifact_section",
   "source_document",
+  "wiki_space",
   "started_at",
   "completed_at",
   "error"
@@ -76,6 +77,14 @@
    "fieldtype": "Link",
    "label": "Source Document",
    "options": "Source Document",
+   "read_only": 1
+  },
+  {
+   "description": "The Wiki Space chosen for generation (Slice 7).",
+   "fieldname": "wiki_space",
+   "fieldtype": "Link",
+   "label": "Wiki Space",
+   "options": "Wiki Space",
    "read_only": 1
   },
   {
