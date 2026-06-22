@@ -1,9 +1,10 @@
 <script setup>
 import { Button } from "frappe-ui";
 import { RouterLink } from "vue-router";
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useTheme } from "@/utils/useTheme";
 import { session } from "@/data/session";
+import AgentChatPanel from "@/components/AgentChatPanel.vue";
 
 const { resolvedTheme, toggleTheme, initializeTheme } = useTheme();
 
@@ -11,6 +12,10 @@ const nav = [
 	{ label: "Projects", to: { name: "Projects" }, icon: "lucide-folder" },
 	{ label: "Explore", to: { name: "Explore" }, icon: "lucide-shapes" },
 ];
+
+// The agent panel + its floating button are mounted once here so they're available on
+// every screen (slice 12).
+const agentOpen = ref(false);
 
 onMounted(initializeTheme);
 </script>
@@ -54,5 +59,16 @@ onMounted(initializeTheme);
 		<main class="flex flex-1 flex-col overflow-y-auto">
 			<router-view />
 		</main>
+
+		<!-- Floating assistant button (every screen) + the slide-over panel. -->
+		<Button
+			v-show="!agentOpen"
+			variant="solid"
+			icon="lucide-sparkles"
+			class="fixed bottom-5 right-5 z-30 !size-11 !rounded-full shadow-lg"
+			tooltip="Ask the assistant"
+			@click="agentOpen = true"
+		/>
+		<AgentChatPanel v-model:open="agentOpen" />
 	</div>
 </template>

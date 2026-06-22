@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-06-22 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "session",
+  "role",
+  "status",
+  "tool_name",
+  "tool_call_id",
+  "content",
+  "tool_calls",
+  "attachments_json",
+  "metadata_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "session",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Session",
+   "options": "Wikify Agent Session",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Role",
+   "options": "user\nassistant\ntool"
+  },
+  {
+   "description": "streaming / done / error / clarification - hoisted out of metadata for cheap filtering.",
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Status"
+  },
+  {
+   "description": "For role=tool rows, the tool that produced this result.",
+   "fieldname": "tool_name",
+   "fieldtype": "Data",
+   "label": "Tool Name"
+  },
+  {
+   "description": "For role=tool rows, links the result to its originating call.",
+   "fieldname": "tool_call_id",
+   "fieldtype": "Data",
+   "label": "Tool Call ID"
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Long Text",
+   "label": "Content"
+  },
+  {
+   "description": "Assistant turn's requested tool calls [{id, name, args}] (JSON).",
+   "fieldname": "tool_calls",
+   "fieldtype": "Long Text",
+   "label": "Tool Calls"
+  },
+  {
+   "description": "The context chips at send time [{type, name, label}] (JSON, user rows).",
+   "fieldname": "attachments_json",
+   "fieldtype": "Long Text",
+   "label": "Attachments JSON"
+  },
+  {
+   "description": "Cost/latency/model, applied-change summaries, clarification options, etc. (JSON).",
+   "fieldname": "metadata_json",
+   "fieldtype": "Long Text",
+   "label": "Metadata JSON"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-22 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Wikify",
+ "name": "Wikify Agent Message",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": []
+}

@@ -1,0 +1,135 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-06-22 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "title",
+  "user",
+  "column_break_meta",
+  "scope",
+  "project",
+  "source_document",
+  "model",
+  "state_section",
+  "status",
+  "is_running",
+  "last_interaction_on"
+ ],
+ "fields": [
+  {
+   "default": "AGT-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "label": "Naming Series",
+   "options": "AGT-.YYYY.-.#####"
+  },
+  {
+   "description": "Auto-summarized from the first user message; editable.",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "global",
+   "description": "The primary context the session opened in.",
+   "fieldname": "scope",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Scope",
+   "options": "global\nproject\ndocument\npage\nsection"
+  },
+  {
+   "description": "Set when scope >= project (drives the injected context prompt).",
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Wikify Project"
+  },
+  {
+   "description": "Set when scope >= document.",
+   "fieldname": "source_document",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Source Document",
+   "options": "Source Document"
+  },
+  {
+   "description": "Resolved agent model for this session (project override -> settings).",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model"
+  },
+  {
+   "fieldname": "state_section",
+   "fieldtype": "Section Break",
+   "label": "State"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nArchived"
+  },
+  {
+   "default": "0",
+   "description": "Concurrency guard - run() rejects while set.",
+   "fieldname": "is_running",
+   "fieldtype": "Check",
+   "label": "Is Running",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_interaction_on",
+   "fieldtype": "Datetime",
+   "label": "Last Interaction On",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-22 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Wikify",
+ "name": "Wikify Agent Session",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title"
+}

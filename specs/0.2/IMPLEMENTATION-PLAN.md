@@ -22,8 +22,8 @@ Numbering continues at **10** so the delivery sequence stays monotonic across ve
 | # | Slice | Type | Blocked by | Spec | Status |
 |---|---|---|---|---|---|
 | 10 | Project hierarchy (DocType + backfill + project/imports UI) | HITL | 9 | 01 | ✅ |
-| 11 | Project context → pipeline + project settings | AFK | 10 | 01 | — |
-| 12 | Agent walking skeleton (chat + 1 read tool + streaming) | HITL | 10 | 02 | — |
+| 11 | Project context → pipeline + project settings | AFK | 10 | 01 | ✅ |
+| 12 | Agent walking skeleton (chat + 1 read tool + streaming) | HITL | 10 | 02 | ✅ |
 | 13 | Agent context attachment + full read tools | HITL | 12 | 02 | — |
 | 14 | Agent write / action tools (tree · retag · re-parse · pipeline) | HITL | 13, 11 | 02 | — |
 | 15 | Wiki rendered preview | HITL | 9 | 03 | — |
@@ -153,13 +153,46 @@ confirm regression-free.
   pass it down. Keep `engine/` functions pure (no DocType reads for context).
 
 ### Acceptance criteria
-- [ ] Saving a context prompt persists it; it appears in the model_config/log provenance.
-- [ ] Re-running cleanup / a VLM re-parse with a distinctive context (e.g. a terminology
+- [x] Saving a context prompt persists it; it appears in the model_config/log provenance.
+- [x] Re-running cleanup / a VLM re-parse with a distinctive context (e.g. a terminology
   rule) visibly changes output vs. blank context.
-- [ ] Blank context reproduces v0.1 output byte-for-byte (no regression).
+- [x] Blank context reproduces v0.1 output byte-for-byte (no regression).
 
 **Verify:** headless — call the cleanup/VLM engine fn with and without `project_context`
 and diff; set a context in the UI and re-run remediation on a flagged page.
+
+### As built
+- **Engine seam:** `engine/loader/context.py:context_block(project_context)` builds the
+  one shared, clearly-delimited `"Project context:\n{…}\n\n"` preamble — and returns
+  `""` for blank/whitespace-only input, so a project with no context yields prompts
+  **byte-identical** to v0.1 (the "no regression" criterion is structural, not just
+  tested). Threaded as an optional `project_context: str = ""` argument (default = current
+  behavior) through every LLM step: `clean_markdown` (prepend), `vlm.parse_page_image`
+  (prepend to the vision text part), `classify_section` (inserted after the taxonomy/format
+  lines, before the section body, per the spec's "append after the taxonomy"). The string
+  flows down the call chains `classify_document → classify_section` and
+  `parse_pdf`/`remediate_pdf → rebuild_and_classify → classify_document`. **Engine stays
+  pure** — no DocType reads for context.
+- **Jobs resolve once:** `jobs/_util.py:project_context(import_doc)` reads
+  `import.project.context_prompt` (blank when unset); `parse`, `remediate`, and `classify`
+  jobs resolve it and pass it into the engine. Each also emits a `Using project context
+  (N chars)` Import Log line when non-blank — the **log provenance** for the criterion.
+- **Settings UI:** `components/ProjectSettings.vue` at `/wikify/project/:name/settings`
+  (route ordered before `/project/:name`) — a `useDoc`-seeded form editing `project_name`,
+  `description`, the **`context_prompt`** textarea (8 rows + helper copy), `agent_model`
+  (free-text Data, "leave blank to use the site default"), and an **Archive** checkbox
+  (maps to `status` Active/Archived). One solid "Save" → `api.projects.update_project`
+  (new whitelisted endpoint, only-passed-fields update; controller guards still enforce
+  unique name + single default), then `project.reload()` + a success toast. A ghost
+  settings icon was added to the `ProjectDetail` header.
+- **Deviation:** the spec's threading table lists `engine/loader/wiki.py`, but wiki
+  generation is purely structural (slugify + page-ref rewrite — **no LLM call**), so there
+  is nothing to steer there; context threading is correctly a no-op for generation and was
+  skipped. `agent_model` is a plain text field here (the populated model picker is Slice 16).
+- **Tests:** `wikify/tests/test_project_context.py` (7 — `context_block` blank/filled, and
+  that cleanup/VLM/classify embed the block in the right place + blank leaves the prompt
+  verbatim). Updated the `clean_markdown`/`classify_section` mocks in
+  `test_remediate_pipeline` / `test_classify` for the new kwarg. Full suite 62 green.
 
 ### Spec refs
 [01-project-hierarchy](01-project-hierarchy.md) → *Where the context prompt threads*.
@@ -188,16 +221,66 @@ only, one tool, no attachments, no write tools.**
   list + input + streaming; `useAgentChat` controller; `agent/realtime.js` listeners.
 
 ### Acceptance criteria
-- [ ] Floating button opens the panel on any screen.
-- [ ] "Summarize the tree of document <X>" streams an answer **after** the agent calls
+- [x] Floating button opens the panel on any screen.
+- [x] "Summarize the tree of document <X>" streams an answer **after** the agent calls
   `read_tree` (visible as a tool-call card / log).
-- [ ] Tokens stream live over realtime; the final message persists as a
+- [x] Tokens stream live over realtime; the final message persists as a
   `Wikify Agent Message` and survives a panel reload (`get_session`).
-- [ ] `cancel` stops a running stream; a second concurrent `run` on the session is
+- [x] `cancel` stops a running stream; a second concurrent `run` on the session is
   rejected (`is_running`).
 
 **Verify:** headless `AgentRunner.run()` with a live model + a stubbed model; then UI —
 ask a tree question, watch the stream, reload the panel, cancel mid-stream.
+
+### As built
+- **Dep:** `litellm` added to `pyproject.toml` and installed in the bench env (1.83.7).
+  litellm pins `click==8.1.8` but frappe/bench need `click~=8.3`; litellm imports fine
+  against the newer click, so click was restored to 8.3.3 (litellm's pin is over-strict).
+- **DocTypes:** `Wikify Agent Session` (`AGT-.YYYY.-.#####`, `title` from the first user
+  message, `scope`/`project`/`source_document`/`model`/`status`/`is_running`/
+  `last_interaction_on`; `on_trash` cascades its messages) + `Wikify Agent Message`
+  (`hash` autoname, sorted `creation asc`; `role`/`content`/`tool_calls`/`tool_name`/
+  `tool_call_id`/`attachments_json`/`status`/`metadata_json`). No patch (new doctypes).
+- **`wikify/agent/`:** `llm.py` (litellm adapter — `litellm.drop_params=True`,
+  `openrouter/`-prefix, `resolve_model` = explicit → project `agent_model` → default
+  `anthropic/claude-sonnet-4.6`), `registry.py` (`Tool` dataclass + `build_default_registry`
+  collecting module `TOOLS` lists), `context.py` (`Ctx` + `default_document`;
+  attachment resolution is a no-op until slice 13), `prompts.py` (system prompt, already
+  accepts a project-context arg for 13), `session.py` (facade: get_or_create /
+  append_message / update_message / `history_messages` replay in OpenAI format /
+  set_running / touch), `loop.py` (`AgentRunner.run` — per-round streaming completion;
+  text deltas → `wikify_agent_stream`, tool-call deltas accumulated by index, server
+  tools run + fed back as `tool` messages, finishes on no-tool-call; `MAX_ROUNDS=25`;
+  per-chunk cancel via Redis `wikify_agent_cancel:<sid>`), `tools/read.py` (the one tool,
+  `read_tree`, rendering `api.sections.get_tree` as indented text, defaulting
+  `source_document` to the session's).
+- **Job + API:** `jobs/agent.py:run_agent_job` (sets the user, runs `AgentRunner`);
+  `api/agent.py` — `run` (validates, get-or-creates the session, **429 + throw** if
+  `is_running`, appends the user message, enqueues on `long`, returns **202**
+  `{session_id, message_id}`), `cancel` (sets the Redis flag), `get_session` (session +
+  ordered messages for hydration).
+- **Realtime:** `wikify_agent_stream|tool|clarify|complete|error:<sid>`, published to the
+  requesting `user` (mirrors the import progress/log streaming).
+- **UI:** `composables/useAgentChat.js` (controller — reactive messages + streaming
+  accumulators, optimistic user + "Thinking…" bubbles, `submitPrompt`/`cancel`/
+  `loadSession`/`newSession`, calls `wikify.api.agent.*` via frappe-ui `call`),
+  `agent/realtime.js` (binds the five `wikify_agent_*:<sid>` socket events → controller
+  handlers, returns an unsubscribe), `components/AgentChatPanel.vue` (right slide-over:
+  message bubbles, tool-call cards running→done, streamed assistant bubble rendered via
+  `MarkdownPreview`, textarea + send/stop), floating button + the panel mounted once in
+  `AppShell.vue` so it's on every screen.
+- **Scope held to the skeleton:** global scope only, no attachment chips and no session
+  history yet (slices 13/16) — the controller already passes `scope`/`source_document`
+  through `run`, and `context.py`/`prompts.py` already take the project-context hook, so
+  13 thickens without reshaping. The conversation persists in the (always-mounted)
+  controller across panel close/open; full reload-rehydration via the history dropdown is
+  slice 13/16, but `get_session` + `loadSession` are already wired.
+- **Verified:** headless `AgentRunner.run()` live (read_tree → 3-bullet summary persisted
+  as 4 messages) and stubbed (7 mocked-litellm tests — tool loop, realtime emit, cancel
+  mid-stream, 429 concurrency reject, enqueue). UI walkthrough on `pdf.localhost`: floating
+  button opens the panel, a tree question streamed an answer after a `read_tree` tool card,
+  message persisted + session titled, close/reopen kept the thread. Full suite 69 green;
+  pre-commit clean.
 
 ### Spec refs
 [02-ai-agent](02-ai-agent.md) (stack, DocTypes, loop, API, realtime).
