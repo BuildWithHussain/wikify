@@ -1,14 +1,26 @@
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { Badge, Button, useDoc } from "frappe-ui";
 import ImportList from "@/pages/ImportList.vue";
 import NewImportDialog from "@/components/NewImportDialog.vue";
+import { setProject } from "@/data/agentContext";
 
 const props = defineProps({
 	name: { type: String, required: true },
 });
 
 const project = useDoc({ doctype: "Wikify Project", name: props.name });
+
+// Attach this project as the agent's default context.
+watch(
+	() => props.name,
+	(name) => name && setProject({ name, label: project.doc?.project_name || name }),
+	{ immediate: true }
+);
+watch(
+	() => project.doc?.project_name,
+	(label) => label && setProject({ name: props.name, label })
+);
 
 const showNewImport = ref(false);
 </script>

@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 
 from wikify.agent import llm, session
-from wikify.agent.context import Ctx
+from wikify.agent.context import Ctx, resolve_attachments
 from wikify.agent.prompts import system_prompt
 from wikify.agent.registry import build_default_registry
 
@@ -37,13 +37,18 @@ class AgentRunner:
 		self.user = user
 		self.doc = frappe.get_doc("Wikify Agent Session", session_id)
 		self.attachments = attachments or []
-		self.model = self.doc.model or llm.resolve_model(project=self.doc.project)
+		# Resolve the turn's attachments into scoping defaults + a context block. The most
+		# specific attachment wins; fall back to the session's opening scope.
+		self.resolved = resolve_attachments(self.attachments)
+		project = self.resolved.project or self.doc.project
+		source_document = self.resolved.source_document or self.doc.source_document
+		self.model = self.doc.model or llm.resolve_model(project=project)
 		self.registry = build_default_registry()
 		self.ctx = Ctx(
 			session=session_id,
 			user=user,
-			project=self.doc.project,
-			source_document=self.doc.source_document,
+			project=project,
+			source_document=source_document,
 			attachments=self.attachments,
 		)
 
@@ -189,10 +194,15 @@ class AgentRunner:
 	# --- message assembly -------------------------------------------------------------
 
 	def _build_messages(self) -> list[dict]:
-		project_context = ""
-		if self.doc.project:
+		# Project context comes from the attached project (or the attached document's
+		# project), falling back to the session's project.
+		project_context = self.resolved.project_context
+		if not project_context and self.doc.project:
 			project_context = frappe.db.get_value("Wikify Project", self.doc.project, "context_prompt") or ""
 		messages: list[dict] = [{"role": "system", "content": system_prompt(project_context)}]
+		if self.resolved.block:
+			# A second system message carries the bounded attachment context for this turn.
+			messages.append({"role": "system", "content": self.resolved.block})
 		messages.extend(session.history_messages(self.session_id))
 		return messages
 

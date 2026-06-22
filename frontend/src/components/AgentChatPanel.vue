@@ -1,9 +1,9 @@
 <script setup>
-// Slide-over chat panel for the Wikify AI agent (slice 12 walking skeleton): message
-// list with chat bubbles + tool-call cards, a streaming assistant bubble, and the input
-// (textarea + send/stop). Context chips + session history land in slices 13/16.
-import { nextTick, ref, watch } from "vue";
-import { Button, Spinner } from "frappe-ui";
+// Slide-over chat panel for the Wikify AI agent. Slice 12 shipped the message list +
+// tool-call cards + streaming bubble + input. Slice 13 adds the context chips row (the
+// removable attachments the agent knows about) and a session-history dropdown.
+import { computed, nextTick, ref, watch } from "vue";
+import { Button, Dropdown, Spinner } from "frappe-ui";
 import MarkdownPreview from "@/components/MarkdownPreview.vue";
 import { useAgentChat } from "@/composables/useAgentChat";
 
@@ -11,7 +11,25 @@ const props = defineProps({ open: { type: Boolean, default: false } });
 const emit = defineEmits(["update:open"]);
 
 const chat = useAgentChat();
-const { messages, prompt, isRunning, errorText } = chat;
+const { messages, prompt, isRunning, errorText, attachments } = chat;
+
+const CHIP_ICON = {
+	project: "lucide-folder",
+	document: "lucide-file-text",
+	page: "lucide-file",
+	section: "lucide-list-tree",
+};
+
+// Session-history dropdown — fetched lazily when opened.
+const sessionOptions = computed(() =>
+	(chat.sessions.value || []).map((s) => ({
+		label: s.title || "Untitled chat",
+		onClick: () => chat.loadSession(s.name),
+	}))
+);
+async function refreshSessions() {
+	await chat.listSessions();
+}
 
 const listEl = ref(null);
 async function scrollToBottom() {
@@ -52,6 +70,14 @@ function onKeydown(e) {
 					<span class="text-base font-medium text-ink-gray-9">Assistant</span>
 				</div>
 				<div class="flex items-center gap-1">
+					<Dropdown :options="sessionOptions" placement="right">
+						<Button
+							variant="ghost"
+							icon="lucide-history"
+							tooltip="Chat history"
+							@click="refreshSessions"
+						/>
+					</Dropdown>
 					<Button
 						variant="ghost"
 						icon="lucide-plus"
@@ -128,6 +154,27 @@ function onKeydown(e) {
 			</div>
 
 			<div class="border-t border-outline-gray-1 p-3">
+				<!-- Context chips (the removable attachments the agent knows about). -->
+				<div v-if="attachments.length" class="mb-2 flex flex-wrap gap-1.5">
+					<span
+						v-for="att in attachments"
+						:key="`${att.type}-${att.name}`"
+						class="flex max-w-[14rem] items-center gap-1 rounded-md border border-outline-gray-2 bg-surface-gray-2 py-0.5 pl-1.5 pr-1 text-xs text-ink-gray-7"
+					>
+						<span
+							:class="[CHIP_ICON[att.type], 'size-3 shrink-0']"
+							aria-hidden="true"
+						/>
+						<span class="truncate">{{ att.label || att.name }}</span>
+						<button
+							class="flex shrink-0 rounded p-0.5 hover:bg-surface-gray-3"
+							:aria-label="`Remove ${att.label || att.name}`"
+							@click="chat.removeAttachment(att)"
+						>
+							<span class="lucide-x size-3" aria-hidden="true" />
+						</button>
+					</span>
+				</div>
 				<p v-if="errorText" class="mb-2 text-sm text-ink-red-6">{{ errorText }}</p>
 				<div
 					class="flex items-end gap-2 rounded-lg border border-outline-gray-2 bg-surface-base px-2 py-1.5 focus-within:border-outline-gray-3"

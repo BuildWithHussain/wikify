@@ -8,6 +8,7 @@ import PageReview from "@/components/PageReview.vue";
 import SectionTree from "@/components/SectionTree.vue";
 import Explore from "@/components/Explore.vue";
 import WikiGenerate from "@/components/WikiGenerate.vue";
+import { setDocument, setProject } from "@/data/agentContext";
 
 const props = defineProps({
 	name: { type: String, required: true },
@@ -65,6 +66,20 @@ const logs = useList({
 
 const status = computed(() => imp.doc?.status);
 const canRemediate = computed(() => status.value === "Review" && !!imp.doc?.source_document);
+
+// Attach the document (with its project) as the agent's default context. Keyed on the
+// source_document id so reloads (progress ticks) don't reset a page/section selection.
+watch(
+	() => imp.doc?.source_document,
+	(sd) => {
+		const projectChip = imp.doc?.project
+			? { name: imp.doc.project, label: imp.doc.project_name || imp.doc.project }
+			: null;
+		if (sd) setDocument({ name: sd, label: imp.doc?.import_title || props.name }, projectChip);
+		else if (projectChip) setProject(projectChip);
+	},
+	{ immediate: true }
+);
 
 const pageReview = ref(null);
 const sectionTree = ref(null);

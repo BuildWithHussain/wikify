@@ -6,6 +6,7 @@ import { CodeEditor } from "frappe-ui/code-editor";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
 import MarkdownPreview from "@/components/MarkdownPreview.vue";
+import { setPage } from "@/data/agentContext";
 
 const props = defineProps({
 	sourceDocument: { type: String, default: null },
@@ -62,8 +63,13 @@ const visiblePages = computed(() => {
 
 const selectedName = ref(null);
 const selected = computed(
-	() => (pages.data || []).find((p) => p.name === selectedName.value) || null,
+	() => (pages.data || []).find((p) => p.name === selectedName.value) || null
 );
+
+// Attach the selected page as the agent's default context (swaps out any section chip).
+watch(selected, (p) => {
+	if (p) setPage({ name: p.name, label: `Page ${p.page_no}` });
+});
 
 // First resolution restores the selection from ?page=<page_no>; afterwards just keep a
 // valid selection as the list / filter changes.
@@ -86,7 +92,7 @@ watch(
 			selectedName.value = list[0].name;
 		}
 	},
-	{ immediate: true },
+	{ immediate: true }
 );
 
 // Persist filter + selected page_no into the query (replace; keep the default tidy).
@@ -141,7 +147,7 @@ watch(
 			mdView.value = p?.canonical_source ? "canonical" : "baseline";
 		}
 	},
-	{ immediate: true },
+	{ immediate: true }
 );
 const mdContent = computed(() => {
 	const p = selected.value;
@@ -231,8 +237,8 @@ function fmtDelta(v) {
 							filter === "flagged"
 								? "No flagged pages — everything passed."
 								: filter === "passed"
-									? "No passed pages yet."
-									: "No pages."
+								? "No passed pages yet."
+								: "No pages."
 						}}
 					</p>
 					<button
@@ -389,7 +395,10 @@ function fmtDelta(v) {
 					<!-- Markdown source toggle (Baseline / Remediation / Canonical) — applies
 					     to both the formatted Preview and the raw Markdown tabs. -->
 					<div
-						v-if="(activeTab === 'preview' || activeTab === 'markdown') && mdViews.length > 1"
+						v-if="
+							(activeTab === 'preview' || activeTab === 'markdown') &&
+							mdViews.length > 1
+						"
 						class="flex items-center gap-1 border-b border-outline-gray-1 px-3 py-1.5"
 					>
 						<Button

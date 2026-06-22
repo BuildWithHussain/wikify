@@ -1,9 +1,13 @@
 <script setup>
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { Badge, Button, Dialog, ErrorMessage, FormControl, useCall, useList } from "frappe-ui";
+import { clear as clearAgentContext } from "@/data/agentContext";
 
 const router = useRouter();
+
+// Global landing — the agent opens with no default attachment here.
+onMounted(clearAgentContext);
 
 // The Projects landing screen — cards via useList (default "Uncategorized" pinned first
 // through the is_default ordering). import_count is denormalized on the doctype.

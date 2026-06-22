@@ -2,11 +2,20 @@
 // reactive messages + streaming accumulators; submitPrompt/cancel/loadSession. Calls the
 // whitelisted `wikify.api.agent.*` methods, optimistically pushes the user bubble + a
 // "Thinking…" assistant bubble, then lets realtime drive.
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { call } from "frappe-ui";
 import { bindAgentRealtime } from "@/agent/realtime";
+import { defaultAttachments } from "@/data/agentContext";
 
 const THINKING_ID = "__thinking__";
+
+function scopeOf(attachments) {
+	if (attachments.some((a) => a.type === "section")) return "section";
+	if (attachments.some((a) => a.type === "page")) return "page";
+	if (attachments.some((a) => a.type === "document")) return "document";
+	if (attachments.some((a) => a.type === "project")) return "project";
+	return "global";
+}
 
 export function useAgentChat() {
 	const messages = ref([]);
@@ -14,7 +23,25 @@ export function useAgentChat() {
 	const sessionId = ref(null);
 	const isRunning = ref(false);
 	const errorText = ref("");
+	const sessions = ref([]);
+	// Editable copy of the default context chips — re-seeded from the store when the
+	// surface (project/document/page/section) changes; the user can remove a chip with ✕.
+	const attachments = ref([]);
 	let unbind = null;
+
+	watch(
+		defaultAttachments,
+		(next) => {
+			attachments.value = (next || []).map((a) => ({ ...a }));
+		},
+		{ immediate: true, deep: true }
+	);
+
+	function removeAttachment(att) {
+		attachments.value = attachments.value.filter(
+			(a) => !(a.type === att.type && a.name === att.name)
+		);
+	}
 
 	function rebind() {
 		unbind?.();
@@ -98,11 +125,17 @@ export function useAgentChat() {
 		prompt.value = "";
 		isRunning.value = true;
 		errorText.value = "";
+		const atts = attachments.value;
+		const projectChip = atts.find((a) => a.type === "project");
+		const docChip = atts.find((a) => a.type === "document");
 		try {
 			const res = await call("wikify.api.agent.run", {
 				prompt: text,
 				session_id: sessionId.value,
-				scope: "global",
+				scope: scopeOf(atts),
+				project: projectChip?.name || null,
+				source_document: docChip?.name || null,
+				attachments: atts.map(({ type, name, label }) => ({ type, name, label })),
 				...extra,
 			});
 			sessionId.value = res.session_id;
@@ -125,7 +158,14 @@ export function useAgentChat() {
 		const res = await call("wikify.api.agent.get_session", { session_id: id });
 		sessionId.value = id;
 		messages.value = hydrate(res.messages || []);
+		isRunning.value = !!res.session?.is_running;
+		errorText.value = "";
 		rebind();
+	}
+
+	async function listSessions() {
+		sessions.value = await call("wikify.api.agent.list_sessions", {});
+		return sessions.value;
 	}
 
 	function newSession() {
@@ -135,6 +175,8 @@ export function useAgentChat() {
 		messages.value = [];
 		errorText.value = "";
 		isRunning.value = false;
+		// Re-seed the chip row from the current surface's defaults.
+		attachments.value = (defaultAttachments.value || []).map((a) => ({ ...a }));
 	}
 
 	return {
@@ -143,9 +185,13 @@ export function useAgentChat() {
 		sessionId,
 		isRunning,
 		errorText,
+		sessions,
+		attachments,
+		removeAttachment,
 		submitPrompt,
 		cancel,
 		loadSession,
+		listSessions,
 		newSession,
 	};
 }

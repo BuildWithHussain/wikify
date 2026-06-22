@@ -24,7 +24,7 @@ Numbering continues at **10** so the delivery sequence stays monotonic across ve
 | 10 | Project hierarchy (DocType + backfill + project/imports UI) | HITL | 9 | 01 | ✅ |
 | 11 | Project context → pipeline + project settings | AFK | 10 | 01 | ✅ |
 | 12 | Agent walking skeleton (chat + 1 read tool + streaming) | HITL | 10 | 02 | ✅ |
-| 13 | Agent context attachment + full read tools | HITL | 12 | 02 | — |
+| 13 | Agent context attachment + full read tools | HITL | 12 | 02 | ✅ |
 | 14 | Agent write / action tools (tree · retag · re-parse · pipeline) | HITL | 13, 11 | 02 | — |
 | 15 | Wiki rendered preview | HITL | 9 | 03 | — |
 | 16 | Polish (session history · per-project agent model · settings · empty states) | AFK | 14 | 01, 02 | — |
@@ -307,15 +307,61 @@ ask a tree question, watch the stream, reload the panel, cancel mid-stream.
 - **UI:** attachment chips row with ✕; session-history dropdown.
 
 ### Acceptance criteria
-- [ ] Opening the panel on a project / document / page / section attaches that thing by
+- [x] Opening the panel on a project / document / page / section attaches that thing by
   default; removing a chip drops it from context.
-- [ ] With a document attached, "what types are my sections?" answers without the user
+- [x] With a document attached, "what types are my sections?" answers without the user
   naming an id (default scoping works).
-- [ ] The attached project's context prompt measurably steers answers.
-- [ ] Sessions are scoped/listed; switching sessions hydrates history.
+- [x] The attached project's context prompt measurably steers answers.
+- [x] Sessions are scoped/listed; switching sessions hydrates history.
 
 **Verify:** open the panel from each surface and confirm the right default chip; ask a
 context-dependent question with and without the chip; confirm project context injection.
+
+### As built
+- **`agent/context.py`** grew `resolve_attachments(attachments) → ResolvedContext`
+  ({project, source_document, project_context, block}). It expands the `[{type, name,
+  label}]` chips into: (a) **scoping defaults** — the most specific attachment wins, a
+  page/section pins its document, and the project is the explicit project chip or derived
+  from the attached document's `project`; (b) a **bounded context block** (≤4k/item),
+  rendered project → document (tree outline) → page → section so the focused item lands
+  last; (c) the attached project's **`context_prompt`**, injected into the system prompt.
+  Resolution is best-effort — a stale/deleted attachment is skipped, never fatal.
+  `Ctx.default_document` now **validates** an explicit id and falls back to the attached
+  document when it doesn't resolve (models sometimes echo a display label `"Title (id)"`
+  instead of the bare id — found during UI verification, fixed + unit-tested).
+- **`loop.py`** resolves the turn's attachments once in `__init__` (used for both the
+  `Ctx` defaults and `_build_messages`), then prepends the context block as a second
+  `system` message before history.
+- **Read tools (`tools/read.py`):** `render_tree` extracted (now tags each node with its
+  `<id>`, shared with the context block) + four new tools — `read_section` (body + meta),
+  `read_page` (canonical markdown + verdict + scores, defaults to the attached doc),
+  `list_section_types` (taxonomy), `search_sections` (Explore-style, reuses
+  `api.explore.type_summary`/`sections_by_type`, scoped to attachment defaults). All
+  auto-registered via the existing `read.TOOLS` collection — the loop is unchanged.
+- **API (`api/agent.py`):** added `list_sessions(scope?/project?/source_document?)` (the
+  user's Active sessions, most-recent first) + `new_session(...)`; `run` already took
+  `scope/project/source_document/attachments`.
+- **Frontend:** new reactive **`data/agentContext.js`** store (`setProject`/`setDocument`/
+  `setPage`/`setSection`/`clear` + `defaultAttachments`/`defaultScope` computeds — slots
+  are cumulative but page⇄section are exclusive). Wired into `ProjectList` (clear →
+  global), `ProjectDetail` (project), `ImportDetail` (document+project, keyed on
+  `source_document` so progress reloads don't reset a selection), `PageReview` (selected
+  page), `SectionTree` (selected section). `useAgentChat` keeps an **editable copy** of
+  the chips (re-seeded from the store on navigation; `removeAttachment` drops one) and
+  sends `scope/project/source_document/attachments` derived from them; added `sessions` +
+  `listSessions`. `AgentChatPanel` renders the **context-chips row** (icon + label + ✕)
+  and a **history dropdown** (lazy-loads `list_sessions` → `loadSession`).
+- **Deviation:** `ask_clarification` (terminal tool) and a dedicated session-scope filter
+  on the history list are deferred — the panel lists all of the user's Active sessions,
+  which is enough for the slice. The realtime `clarify` channel is already bound from
+  slice 12; the tool itself lands with the write tools (slice 14).
+- **Verified:** headless `resolve_attachments`/read-tool checks against the live
+  Nephrology + Obstetrics docs; 11 new `FrappeTestCase`s (resolution by type, the four
+  read tools, bad-id fallback, attachment-block injection in the loop, list/new session) —
+  full suite **80 green**. UI on `pdf.localhost`: opened the panel on the Tree tab → the
+  cumulative **project + document + section** chips appeared (each removable); "what
+  section types are used in this document?" streamed a grounded breakdown without the user
+  naming an id; removing the section chip dropped it. pre-commit clean.
 
 ### Spec refs
 [02-ai-agent](02-ai-agent.md) → *Context attachment*, *Read tools*.

@@ -6,6 +6,7 @@ import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
 import SectionDraggable from "@/components/SectionDraggable.vue";
 import MarkdownPreview from "@/components/MarkdownPreview.vue";
+import { setSection } from "@/data/agentContext";
 
 const props = defineProps({
 	sourceDocument: { type: String, default: null },
@@ -64,7 +65,7 @@ watch(
 		tree.value = roots;
 		if (roots.length && !byName.value[selectedName.value]) selectedName.value = roots[0].name;
 	},
-	{ immediate: true, deep: false },
+	{ immediate: true, deep: false }
 );
 
 const selectedName = ref(null);
@@ -72,6 +73,11 @@ const selected = computed(() => byName.value[selectedName.value] || null);
 function onSelect(name) {
 	selectedName.value = name;
 }
+
+// Attach the selected section as the agent's default context (swaps out any page chip).
+watch(selected, (s) => {
+	if (s) setSection({ name: s.name, label: s.title || "Section" });
+});
 
 // --- Mutations -----------------------------------------------------------------------
 // useCall.submit resolves (doesn't reject) on a server error and sets `.error`, so we

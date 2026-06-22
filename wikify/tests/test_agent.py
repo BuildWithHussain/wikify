@@ -12,9 +12,15 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from wikify.agent import session
-from wikify.agent.context import Ctx
+from wikify.agent.context import Ctx, resolve_attachments
 from wikify.agent.loop import AgentRunner, cancel_key, request_cancel
-from wikify.agent.tools.read import _read_tree
+from wikify.agent.tools.read import (
+	_list_section_types,
+	_read_page,
+	_read_section,
+	_read_tree,
+	_search_sections,
+)
 from wikify.api import agent as agent_api
 from wikify.engine import store
 from wikify.engine.loader.sectionizer import Section
@@ -180,3 +186,107 @@ class TestAgent(FrappeTestCase):
 		self.assertIn("message_id", result)
 		enq.assert_called_once()
 		self.assertEqual(frappe.db.get_value("Wikify Agent Session", result["session_id"], "is_running"), 1)
+
+	# --- slice 13: the extra read tools ----------------------------------------------
+
+	def _first_section(self):
+		return frappe.get_all(
+			"Source Section", filters={"source_document": self.sd.name}, order_by="lft asc", limit=1
+		)[0].name
+
+	def test_read_section_returns_body_and_meta(self):
+		name = self._first_section()
+		out = _read_section(Ctx(session="x", user="Administrator"), {"name": name})
+		self.assertIn("1. Alpha", out)
+		self.assertIn("body of 1. Alpha", out)
+
+	def test_read_page_uses_attached_document(self):
+		frappe.get_doc(
+			{
+				"doctype": "Source Page",
+				"source_document": self.sd.name,
+				"page_no": 1,
+				"verdict": "pass",
+				"canonical_markdown": "Canonical page one body.",
+			}
+		).insert(ignore_permissions=True)
+		ctx = Ctx(session="x", user="Administrator", source_document=self.sd.name)
+		out = _read_page(ctx, {"page_no": 1})
+		self.assertIn("Canonical page one body.", out)
+		self.assertIn("Page 1", out)
+
+	def _make_type(self, **kwargs):
+		tname = f"t_{frappe.generate_hash(length=6)}"
+		return frappe.get_doc({"doctype": "Section Type", "type_name": tname, **kwargs}).insert(
+			ignore_permissions=True
+		)
+
+	def test_list_section_types_lists_taxonomy(self):
+		st = self._make_type(label="Introduction")
+		out = _list_section_types(Ctx(session="x", user="Administrator"), {})
+		self.assertIn(st.type_name, out)
+
+	def test_search_sections_by_type_spans_documents(self):
+		st = self._make_type()
+		name = self._first_section()
+		frappe.db.set_value("Source Section", name, "section_type", st.type_name)
+		out = _search_sections(Ctx(session="x", user="Administrator"), {"section_type": st.type_name})
+		self.assertIn("1. Alpha", out)
+		self.assertIn(self.sd.name, out)
+
+	def test_explicit_bad_document_falls_back_to_attached(self):
+		"""A model echoing "Title (id)" instead of the bare id falls back to the attachment."""
+		ctx = Ctx(session="x", user="Administrator", source_document=self.sd.name)
+		out = _read_tree(ctx, {"source_document": f"Agent Test ({self.sd.name})"})
+		self.assertIn("1. Alpha", out)
+
+	# --- slice 13: attachment resolution ---------------------------------------------
+
+	def test_resolve_document_attachment_sets_scope_and_block(self):
+		resolved = resolve_attachments([{"type": "document", "name": self.sd.name}])
+		self.assertEqual(resolved.source_document, self.sd.name)
+		self.assertIn("1. Alpha", resolved.block)
+
+	def test_resolve_section_attachment_pins_its_document(self):
+		name = self._first_section()
+		resolved = resolve_attachments([{"type": "section", "name": name}])
+		self.assertEqual(resolved.source_document, self.sd.name)
+		self.assertIn("body of 1. Alpha", resolved.block)
+
+	def test_resolve_project_attachment_injects_context_prompt(self):
+		proj = frappe.get_doc(
+			{
+				"doctype": "Wikify Project",
+				"project_name": f"Proj {frappe.generate_hash(length=6)}",
+				"context_prompt": "Use UK spelling.",
+			}
+		).insert(ignore_permissions=True)
+		resolved = resolve_attachments([{"type": "project", "name": proj.name}])
+		self.assertEqual(resolved.project, proj.name)
+		self.assertEqual(resolved.project_context, "Use UK spelling.")
+
+	def test_stale_attachment_is_skipped(self):
+		resolved = resolve_attachments([{"type": "document", "name": "does-not-exist"}])
+		self.assertEqual(resolved.block, "")
+
+	def test_loop_prepends_attachment_block(self):
+		"""An attached document's tree outline reaches the model as a system message."""
+		sess = session.get_or_create(None, user="Administrator", scope="global")
+		session.append_message(sess.name, "user", "What's in this doc?", status="done")
+		session.set_running(sess.name, True)
+		fake = FakeLLM([[_text_chunk("It has Alpha and Beta.")]])
+		with patch("wikify.agent.llm.complete_with_tools", fake):
+			AgentRunner(
+				sess.name, "Administrator", attachments=[{"type": "document", "name": self.sd.name}]
+			).run()
+		systems = [m["content"] for m in fake.calls[0]["messages"] if m["role"] == "system"]
+		self.assertTrue(any("1. Alpha" in s for s in systems))
+
+	# --- slice 13: session listing ---------------------------------------------------
+
+	def test_list_and_new_session(self):
+		created = agent_api.new_session(scope="document", source_document=self.sd.name)
+		self.assertIn("session_id", created)
+		frappe.db.set_value("Wikify Agent Session", created["session_id"], "title", "My chat")
+		listed = agent_api.list_sessions()
+		self.assertTrue(any(s["name"] == created["session_id"] for s in listed))
