@@ -72,3 +72,7 @@ files/
 reports/wiki/
 !specs/gpt-poc/scratch/
 !specs/gpt-poc/scratch/*.md
+
+# agent verification screenshots (spec-loop)
+scratch/shots/
+/*.png
