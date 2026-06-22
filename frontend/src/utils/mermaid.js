@@ -39,15 +39,17 @@ function themeConfig() {
 }
 
 /**
- * Find ```mermaid fenced blocks (rendered by `marked` as
- * <pre><code class="language-mermaid">) inside `root` and replace each with its SVG.
- * Idempotent per element; failures leave the original code block in place.
+ * Find mermaid blocks inside `root` and replace each with its SVG. Handles both the
+ * browser `marked` output (`<pre><code class="language-mermaid">`, used by
+ * MarkdownPreview) and the wiki renderer's server-side output (`<pre class="mermaid">`,
+ * used by WikiPreview) so the same util covers both previews.
+ * Idempotent per element; failures leave the original block in place.
  */
 export async function renderMermaidIn(root) {
 	if (!root) return;
-	const blocks = [...root.querySelectorAll("code.language-mermaid")].filter(
-		(code) => !code.closest("[data-mermaid-done]"),
-	);
+	const blocks = [
+		...root.querySelectorAll("code.language-mermaid, pre.mermaid"),
+	].filter((el) => !el.closest("[data-mermaid-done]"));
 	if (!blocks.length) return;
 
 	let mermaid;
@@ -58,12 +60,12 @@ export async function renderMermaidIn(root) {
 		return; // mermaid asset unavailable — leave the code blocks untouched
 	}
 
-	for (const code of blocks) {
-		const host = code.closest("pre") || code;
+	for (const el of blocks) {
+		const host = el.closest("pre") || el;
 		host.setAttribute("data-mermaid-done", "");
 		try {
 			counter += 1;
-			const { svg } = await mermaid.render(`wikify-mermaid-${counter}`, code.textContent || "");
+			const { svg } = await mermaid.render(`wikify-mermaid-${counter}`, el.textContent || "");
 			const figure = document.createElement("div");
 			figure.className = "mermaid-figure";
 			figure.setAttribute("data-mermaid-done", "");

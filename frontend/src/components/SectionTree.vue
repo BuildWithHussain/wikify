@@ -1,11 +1,10 @@
 <script setup>
 import { computed, ref, watch } from "vue";
-import { Badge, Button, Dialog, TabButtons, useCall, useList, toast } from "frappe-ui";
-import { CodeEditor } from "frappe-ui/code-editor";
+import { Badge, Button, Dialog, useCall, useList, toast } from "frappe-ui";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
 import SectionDraggable from "@/components/SectionDraggable.vue";
-import MarkdownPreview from "@/components/MarkdownPreview.vue";
+import WikiPreview from "@/components/WikiPreview.vue";
 import { setSection } from "@/data/agentContext";
 
 const props = defineProps({
@@ -154,15 +153,6 @@ async function buildGraph() {
 	}
 }
 
-function pageRange(node) {
-	if (!node || node.page_start == null) return null;
-	return node.page_start === node.page_end
-		? `p${node.page_start}`
-		: `p${node.page_start}–${node.page_end}`;
-}
-
-// Section body: rendered markdown by default, with a GitHub-style toggle to raw source.
-const mdMode = ref("rendered");
 </script>
 
 <template>
@@ -216,74 +206,9 @@ const mdMode = ref("rendered");
 				</div>
 			</Pane>
 
-			<!-- Right: selected section body -->
+			<!-- Right: wiki-fidelity preview of the selected section -->
 			<Pane :size="60" class="flex flex-col">
-				<template v-if="selected">
-					<div class="border-b border-outline-gray-1 px-4 py-3">
-						<div class="flex items-center gap-2">
-							<span class="text-base font-medium text-ink-gray-9">{{
-								selected.title
-							}}</span>
-							<Badge
-								:label="`Level ${selected.level}`"
-								theme="gray"
-								variant="subtle"
-								size="sm"
-							/>
-							<Badge
-								v-if="pageRange(selected)"
-								:label="pageRange(selected)"
-								theme="gray"
-								variant="subtle"
-								size="sm"
-							/>
-							<Badge
-								v-if="!selected.include_in_wiki"
-								label="Excluded"
-								theme="orange"
-								variant="subtle"
-								size="sm"
-							/>
-							<!-- Rendered ↔ source toggle -->
-							<TabButtons
-								v-model="mdMode"
-								class="ml-auto"
-								:options="[
-									{
-										label: 'Preview',
-										value: 'rendered',
-										iconLeft: 'lucide-eye',
-									},
-									{
-										label: 'Markdown',
-										value: 'source',
-										iconLeft: 'lucide-code',
-									},
-								]"
-							/>
-						</div>
-						<p class="mt-1 truncate text-xs text-ink-gray-5">
-							{{ selected.hierarchy_path }}
-						</p>
-					</div>
-					<div class="min-h-0 flex-1 overflow-auto p-3">
-						<MarkdownPreview
-							v-if="mdMode === 'rendered'"
-							:content="selected.markdown || ''"
-						/>
-						<CodeEditor
-							v-else
-							:model-value="selected.markdown || ''"
-							language="markdown"
-							variant="outline"
-							:disabled="true"
-							class="min-h-0 flex-1"
-						/>
-					</div>
-				</template>
-				<p v-else class="py-10 text-center text-sm text-ink-gray-5">
-					Select a section to view its content.
-				</p>
+				<WikiPreview :section="selectedName" @navigate="onSelect" />
 			</Pane>
 		</Splitpanes>
 

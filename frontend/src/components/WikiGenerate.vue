@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from "vue";
-import { Badge, Button, FormControl, TabButtons, useCall, useList, toast } from "frappe-ui";
+import { Badge, Button, Dialog, FormControl, TabButtons, useCall, useList, toast } from "frappe-ui";
+import WikiPreview from "@/components/WikiPreview.vue";
 import { useSocket } from "@/socket";
 
 const props = defineProps({
@@ -124,6 +125,15 @@ function pageRange(n) {
 	if (n.page_start == null) return "";
 	return n.page_start === n.page_end ? `p${n.page_start}` : `p${n.page_start}–${n.page_end}`;
 }
+
+// Clicking a projected node opens the same wiki preview as the Tree tab.
+const previewSection = ref(null);
+const previewOpen = computed({
+	get: () => !!previewSection.value,
+	set: (v) => {
+		if (!v) previewSection.value = null;
+	},
+});
 </script>
 
 <template>
@@ -249,11 +259,13 @@ function pageRange(n) {
 					>
 						No sections to generate — include sections in the tree first.
 					</p>
-					<div
+					<button
 						v-for="row in previewRows"
 						:key="row.name"
-						class="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-gray-1"
+						type="button"
+						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-surface-gray-2"
 						:style="{ paddingLeft: `${row.depth * 1.25 + 0.5}rem` }"
+						@click="previewSection = row.name"
 					>
 						<span
 							class="size-4 shrink-0 text-ink-gray-4"
@@ -269,9 +281,18 @@ function pageRange(n) {
 							size="sm"
 							class="ml-auto shrink-0"
 						/>
-					</div>
+					</button>
 				</div>
 			</div>
 		</div>
+
+		<!-- Wiki preview of a projected node (same component as the Tree tab) -->
+		<Dialog v-model:open="previewOpen" :options="{ size: '4xl' }">
+			<template #body>
+				<div class="h-[75vh]">
+					<WikiPreview :section="previewSection" @navigate="(n) => (previewSection = n)" />
+				</div>
+			</template>
+		</Dialog>
 	</div>
 </template>

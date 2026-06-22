@@ -26,7 +26,7 @@ Numbering continues at **10** so the delivery sequence stays monotonic across ve
 | 12 | Agent walking skeleton (chat + 1 read tool + streaming) | HITL | 10 | 02 | ✅ |
 | 13 | Agent context attachment + full read tools | HITL | 12 | 02 | ✅ |
 | 14 | Agent write / action tools (tree · retag · re-parse · pipeline) | HITL | 13, 11 | 02 | ✅ |
-| 15 | Wiki rendered preview | HITL | 9 | 03 | — |
+| 15 | Wiki rendered preview | HITL | 9 | 03 | ✅ |
 | 16 | Polish (session history · per-project agent model · settings · empty states) | AFK | 14 | 01, 02 | — |
 
 **Spine:** 10 → 11 → 12 → 13 → 14 → 16 is the main chain. **Parallelism:** 15 (wiki
@@ -485,15 +485,59 @@ review/tree UI reflects them; confirm the confirm-gate on expensive ops.
   clickable → same preview.
 
 ### Acceptance criteria
-- [ ] Clicking a tree node renders it (headings/tables/mermaid-as-SVG) in a wiki-style
+- [x] Clicking a tree node renders it (headings/tables/mermaid-as-SVG) in a wiki-style
   frame with the correct breadcrumb.
-- [ ] A "refer Page No. 130" ref shows as a preview link to the resolved section; the count
+- [x] A "refer Page No. 130" ref shows as a preview link to the resolved section; the count
   hint is correct.
-- [ ] Wiki tab projected tree is clickable → same preview; Rendered ⇄ Source toggles.
-- [ ] A generated Wiki Document page matches its preview (spot-check).
+- [x] Wiki tab projected tree is clickable → same preview; Rendered ⇄ Source toggles.
+- [x] A generated Wiki Document page matches its preview (spot-check).
 
 **Verify:** open previews for a text page, a table page, and a mermaid-bearing visual page;
 generate the wiki and compare one page to its preview.
+
+### As built
+- **Renderer decision — reuse the wiki app's server-side renderer.** `apps/wiki` renders
+  `Wiki Document.content` via `wiki.wiki.markdown.render_markdown` (markdown-it-py +
+  callout/video/pdf plugins; a ```mermaid fence becomes a bare `<pre class="mermaid">`,
+  hydrated client-side). `api/wiki.render_section_preview` calls **that exact function**, so
+  preview ≈ generated page — true fidelity, not browser-side `marked`. Confirmed against a
+  generated Wiki Document (tables, headings, mermaid match).
+- **Backend** — `api/wiki.render_section_preview(section)` returns
+  `{title, breadcrumb, html, markdown, include_in_wiki, page_refs_resolved}`. Content is the
+  same string generation writes (mirror of `_WikiGenerator._content_for` — markdown, else
+  `# {title}` for a non-group leaf). Breadcrumb is `[project_name, doc_title, *hierarchy_path]`.
+  Page refs are dry-resolved with the **same pass-2 logic** wiki generation uses
+  (`engine.loader.wiki.rewrite_page_refs` + a smallest-span `route_for_page` over the
+  document's included sections) — internal "page N" refs become links to a preview sentinel
+  route `/section-preview/<name>`, external citations (e.g. "Williams … page 820") stay
+  plain text, and the resolved count drives the hint.
+- **Frontend** — `components/WikiPreview.vue` (wiki-framed read-only view: breadcrumb +
+  H1 title + rendered HTML in `prose prose-sm` with light wiki table chrome + a
+  **Rendered ⇄ Source** toggle via `CodeEditor` + an **excluded** banner + a
+  `N refs → links` hint badge). It intercepts clicks on `/section-preview/<name>` links and
+  emits `navigate(name)` instead of hitting a non-existent wiki route. `utils/mermaid.js`'s
+  `renderMermaidIn` was extended to also match the wiki renderer's `<pre class="mermaid">`
+  (it already matched `marked`'s `<code class="language-mermaid">`), so the *same* util
+  serves both previews — the wiki mermaid loader still themes from live design tokens.
+- **Wiring** — **Tree tab** (`SectionTree.vue`): the right Splitpane is now
+  `<WikiPreview :section="selectedName" @navigate="onSelect">` (replacing the old
+  MarkdownPreview/CodeEditor + duplicate toggle); selecting a node still drives the agent
+  context attachment. **Wiki tab** (`WikiGenerate.vue`): the projected-tree rows became
+  `<button>`s that open the **same** `WikiPreview` in a `4xl` Dialog; a `navigate` inside the
+  dialog re-targets it.
+- **Deviation:** the spec sketched an optional left-rail projected tree inside the preview
+  frame; the Tree tab already supplies that rail (the section tree beside the pane) and the
+  Wiki tab opens the preview as a focused dialog, so a second in-frame rail was unnecessary.
+  Page-ref links point at a `/section-preview/<name>` sentinel (intercepted client-side)
+  rather than a real wiki route, since nothing is generated yet — exactly the spec's "dry"
+  intent.
+- **Verified:** 5 new `FrappeTestCase`s in `wikify/tests/test_wiki_preview.py` (breadcrumb,
+  wiki-renderer fidelity incl. `<pre class="mermaid">` + GFM table, page-ref resolution to a
+  preview link, excluded flag, markdown passthrough); full suite **93 green**. UI on
+  `pdf.localhost`: Tree-tab node → wiki-framed render + breadcrumb; Rendered ⇄ Source toggle;
+  Wiki-tab projected row → same preview in a dialog (rendered table); the PRETERM section
+  showed a `1 ref → links` badge with "refer Page No. 3" as a live preview link while the
+  external "Williams … page 820" citation stayed plain text. pre-commit clean.
 
 ### Spec refs
 [03-wiki-preview](03-wiki-preview.md).
